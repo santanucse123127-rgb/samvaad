@@ -1,126 +1,271 @@
-import React from 'react'
+// import React from 'react'
 
-const NewChatModal = ({ isOpen, onClose, onSelectUser, token }) => {
+// const NewChatModal = ({ isOpen, onClose, onSelectUser, token }) => {
+//   const [searchQuery, setSearchQuery] = useState('');
+//   const [searchResults, setSearchResults] = useState([]);
+//   const [loading, setLoading] = useState(false);
+//   const searchTimeoutRef = useRef(null);
+
+//   useEffect(() => {
+//     if (searchQuery.length > 0) {
+//       if (searchTimeoutRef.current) {
+//         clearTimeout(searchTimeoutRef.current);
+//       }
+
+//       searchTimeoutRef.current = setTimeout(async () => {
+//         setLoading(true);
+//         try {
+//           const response = await api.searchUsers(searchQuery, token);
+//           if (response.success) {
+//             setSearchResults(response.data);
+//           }
+//         } catch (error) {
+//           console.error('Search failed:', error);
+//         } finally {
+//           setLoading(false);
+//         }
+//       }, 300);
+//     } else {
+//       setSearchResults([]);
+//     }
+
+//     return () => {
+//       if (searchTimeoutRef.current) {
+//         clearTimeout(searchTimeoutRef.current);
+//       }
+//     };
+//   }, [searchQuery, token]);
+
+//   if (!isOpen) return null;
+
+//   return (
+//     <motion.div
+//       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+//       initial={{ opacity: 0 }}
+//       animate={{ opacity: 1 }}
+//       exit={{ opacity: 0 }}
+//       onClick={onClose}
+//     >
+//       <motion.div
+//         className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+//         initial={{ scale: 0.9, y: 20 }}
+//         animate={{ scale: 1, y: 0 }}
+//         exit={{ scale: 0.9, y: 20 }}
+//         onClick={(e) => e.stopPropagation()}
+//       >
+//         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+//           <div className="flex items-center justify-between mb-4">
+//             <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+//               New Chat
+//             </h3>
+//             <button
+//               onClick={onClose}
+//               className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
+//             >
+//               <X className="w-5 h-5" />
+//             </button>
+//           </div>
+//           <div className="relative">
+//             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+//             <input
+//               type="text"
+//               value={searchQuery}
+//               onChange={(e) => setSearchQuery(e.target.value)}
+//               placeholder="Search by name, phone, or email..."
+//               className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
+//               autoFocus
+//             />
+//           </div>
+//         </div>
+
+//         <div className="max-h-96 overflow-y-auto">
+//           {loading ? (
+//             <div className="flex justify-center items-center p-8">
+//               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+//             </div>
+//           ) : searchResults.length > 0 ? (
+//             searchResults.map((user) => (
+//               <motion.button
+//                 key={user._id}
+//                 onClick={() => {
+//                   onSelectUser(user);
+//                   onClose();
+//                 }}
+//                 className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700"
+//                 initial={{ opacity: 0, x: -20 }}
+//                 animate={{ opacity: 1, x: 0 }}
+//               >
+//                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+//                   <span className="text-lg font-semibold text-white">
+//                     {user.name?.charAt(0).toUpperCase()}
+//                   </span>
+//                 </div>
+//                 <div className="flex-1 text-left">
+//                   <h4 className="font-medium">{user.name}</h4>
+//                   <p className="text-sm text-gray-500 dark:text-gray-400">
+//                     {user.phone || user.email}
+//                   </p>
+//                 </div>
+//               </motion.button>
+//             ))
+//           ) : searchQuery.length > 0 ? (
+//             <div className="p-8 text-center text-gray-500">
+//               No users found
+//             </div>
+//           ) : (
+//             <div className="p-8 text-center text-gray-500">
+//               Search for users by name, phone number, or email
+//             </div>
+//           )}
+//         </div>
+//       </motion.div>
+//     </motion.div>
+//   );
+// };
+
+// export default NewChatModal
+
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Search, User } from 'lucide-react';
+import api, { getUsers } from '../services/api';
+
+const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
+  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const searchTimeoutRef = useRef(null);
-
+  console.log("token : ",token)
   useEffect(() => {
-    if (searchQuery.length > 0) {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
-      searchTimeoutRef.current = setTimeout(async () => {
-        setLoading(true);
-        try {
-          const response = await api.searchUsers(searchQuery, token);
-          if (response.success) {
-            setSearchResults(response.data);
-          }
-        } catch (error) {
-          console.error('Search failed:', error);
-        } finally {
-          setLoading(false);
-        }
-      }, 300);
-    } else {
-      setSearchResults([]);
+    if (isOpen) {
+      fetchUsers();
     }
+  }, [isOpen]);
 
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await getUsers(token);
+      if (response.success) {
+        setUsers(response.data);
       }
-    };
-  }, [searchQuery, token]);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleUserClick = async (user) => {
+  console.log('👤 User clicked:', user);
+  console.log('🎯 Calling onCreateChat...');
+  
+  try {
+    const result = await onCreateChat(user);
+    console.log('✅ onCreateChat result:', result);
+    
+    if (result && result.success) {
+      console.log('✅ Closing modal');
+      onClose();
+    } else {
+      console.error('❌ onCreateChat failed');
+    }
+  } catch (error) {
+    console.error('❌ Error in handleUserClick:', error);
+  }
+};
 
   if (!isOpen) return null;
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              New Chat
-            </h3>
+    <AnimatePresence>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <motion.div
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              New Conversation
+            </h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
+              className="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, phone, or email..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
-              autoFocus
-            />
-          </div>
-        </div>
 
-        <div className="max-h-96 overflow-y-auto">
-          {loading ? (
-            <div className="flex justify-center items-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+          {/* Search */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:border-purple-500 focus:outline-none text-sm transition-all"
+              />
             </div>
-          ) : searchResults.length > 0 ? (
-            searchResults.map((user) => (
-              <motion.button
-                key={user._id}
-                onClick={() => {
-                  onSelectUser(user);
-                  onClose();
-                }}
-                className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                  <span className="text-lg font-semibold text-white">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 text-left">
-                  <h4 className="font-medium">{user.name}</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {user.phone || user.email}
-                  </p>
-                </div>
-              </motion.button>
-            ))
-          ) : searchQuery.length > 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No users found
-            </div>
-          ) : (
-            <div className="p-8 text-center text-gray-500">
-              Search for users by name, phone number, or email
-            </div>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
+          </div>
+
+          {/* Users List */}
+          <div className="max-h-96 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                No users found
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <motion.button
+                  key={user._id}
+                  onClick={() => handleUserClick(user)}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg font-semibold text-white">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {user.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {user.email}
+                    </p>
+                  </div>
+                </motion.button>
+              ))
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };
 
-export default NewChatModal
+export default NewChatModal;

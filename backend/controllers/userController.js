@@ -154,6 +154,25 @@ export const searchUsers = async (req, res) => {
   }
 };
 
+
+export const getUsers = async (req, res) => {
+  try {
+    const users = await User.find({
+      _id: { $ne: req.user._id } // Exclude current user
+    }).select('name email avatar status');
+
+    res.json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 // @desc    Get user by ID
 // @route   GET /api/users/:id
 // @access  Private

@@ -1,12 +1,17 @@
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
+import User from "../models/User.js";
+import Message from "../models/Message.js";
+import Conversation from "../models/Conversation.js";
+import jwt from "jsonwebtoken";
 
 export const initializeSocket = (io) => {
+  // Store active users
+  const activeUsers = new Map();
+
   // Middleware to authenticate socket connections
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
-      
+
       if (!token) {
         return next(new Error('Authentication error'));
       }
@@ -26,105 +31,291 @@ export const initializeSocket = (io) => {
     }
   });
 
-  io.on('connection', async (socket) => {
+  io.on("connection", async (socket) => {
     console.log(`✅ User connected: ${socket.userId}`);
 
-    // Update user status and socket ID
-    await User.findByIdAndUpdate(socket.userId, {
-      status: 'online',
-      socketId: socket.id,
-      lastSeen: Date.now(),
-    });
-
-    // // Join user's personal room
-    // socket.join(socket.userId);
-
-    // Broadcast online status
-    socket.broadcast.emit('user-online', {
-  userId: socket.userId,
-});
-
-
-    // Handle typing event
-    socket.on('typing', ({ conversationId }) => {
-  socket.to(conversationId).emit('typing', {
-    userId: socket.userId,
-    conversationId,
-  });
-});
-
-
-    // Handle stop typing event
-    socket.on('stop-typing', ({ conversationId }) => {
-  socket.to(conversationId).emit('stop-typing', {
-    userId: socket.userId,
-    conversationId,
-  });
-});
-
-
-    // Handle join conversation
-    socket.on('join-chat', (conversationId) => {
-      socket.join(conversationId);
-      console.log(`User ${socket.userId} joined conversation ${conversationId}`);
-    });
-
-    // Handle leave conversation
-    socket.on('leave-chat', (conversationId) => {
-      socket.leave(conversationId);
-      console.log(`User ${socket.userId} left conversation ${conversationId}`);
-    });
-
-    // Handle message status update
-    // socket.on('message-delivered', async (data) => {
-    //   socket.to(data.senderId).emit('message-status-update', {
-    //     messageId: data.messageId,
-    //     status: 'delivered',
-    //   });
-    // });
-
-    // Handle video call signals
-    socket.on('call-user', (data) => {
-      io.to(data.userToCall).emit('incoming-call', {
-        signal: data.signal,
-        from: socket.userId,
-        name: socket.user.name,
-        avatar: socket.user.avatar,
-      });
-    });
-
-    socket.on('answer-call', (data) => {
-      io.to(data.to).emit('call-accepted', {
-        signal: data.signal,
-      });
-    });
-
-    socket.on('reject-call', (data) => {
-      io.to(data.to).emit('call-rejected');
-    });
-
-    socket.on('end-call', (data) => {
-      io.to(data.to).emit('call-ended');
-    });
-
-    // Handle disconnect
-    socket.on('disconnect', async () => {
-      console.log(`❌ User disconnected: ${socket.userId}`);
-
-      // Update user status
+    try {
+      // Update user status to online
       await User.findByIdAndUpdate(socket.userId, {
-        status: 'offline',
+        status: 'online',
+        socketId: socket.id,
         lastSeen: Date.now(),
-        socketId: '',
       });
 
-      // Broadcast offline status
-      socket.broadcast.emit('user-offline', {
+      // Add to active users
+      activeUsers.set(socket.userId, socket.id);
+
+      // Notify all contacts that user is online
+      const user = await User.findById(socket.userId);
+      socket.broadcast.emit('user-status-changed', {
         userId: socket.userId,
-        status: 'offline',
+        status: 'online',
         lastSeen: Date.now(),
       });
-    });
+
+      // User setup - join their personal room
+      socket.join(socket.userId);
+
+      // Join all conversation rooms
+      const conversations = await Conversation.find({
+        participants: socket.userId,
+      });
+
+      conversations.forEach(conv => {
+        socket.join(conv._id.toString());
+        console.log(`👤 User ${socket.userId} auto-joined room: ${conv._id}`);
+      });
+
+      // Handle joining a specific conversation
+      socket.on("join-conversation", async (conversationId) => {
+        socket.join(conversationId);
+        console.log(`👤 User ${socket.userId} joined conversation: ${conversationId}`);
+
+        // Mark all messages as delivered
+        const messages = await Message.find({
+          conversationId,
+          sender: { $ne: socket.userId },
+          status: 'sent',
+        });
+
+        for (const message of messages) {
+          await message.markAsDelivered(socket.userId);
+          
+          // Notify sender about delivery
+          io.to(message.sender.toString()).emit('message-status-updated', {
+            messageId: message._id,
+            status: 'delivered',
+            userId: socket.userId,
+          });
+        }
+      });
+
+      // Handle leaving a conversation
+      socket.on("leave-conversation", (conversationId) => {
+        socket.leave(conversationId);
+        console.log(`👋 User ${socket.userId} left conversation: ${conversationId}`);
+      });
+
+      // Handle typing indicator
+      socket.on("typing", ({ conversationId }) => {
+        socket.to(conversationId).emit("user-typing", {
+          userId: socket.userId,
+          conversationId,
+          userName: socket.user.name,
+        });
+      });
+
+      // Handle stop typing indicator
+      socket.on("stop-typing", ({ conversationId }) => {
+        socket.to(conversationId).emit("user-stopped-typing", {
+          userId: socket.userId,
+          conversationId,
+        });
+      });
+
+      // Handle message reactions
+      socket.on("add-reaction", async ({ messageId, emoji }) => {
+        try {
+          const message = await Message.findById(messageId);
+          if (message) {
+            await message.addReaction(socket.userId, emoji);
+            
+            // Notify all conversation participants
+            io.to(message.conversationId.toString()).emit("reaction-added", {
+              messageId,
+              userId: socket.userId,
+              emoji,
+            });
+          }
+        } catch (error) {
+          console.error("Error adding reaction:", error);
+        }
+      });
+
+      // Handle removing reactions
+      socket.on("remove-reaction", async ({ messageId }) => {
+        try {
+          const message = await Message.findById(messageId);
+          if (message) {
+            await message.removeReaction(socket.userId);
+            
+            io.to(message.conversationId.toString()).emit("reaction-removed", {
+              messageId,
+              userId: socket.userId,
+            });
+          }
+        } catch (error) {
+          console.error("Error removing reaction:", error);
+        }
+      });
+
+      // Handle voice/video call signals
+      socket.on("call-user", ({ to, offer, callType }) => {
+        io.to(to).emit("incoming-call", {
+          from: socket.userId,
+          fromUser: {
+            _id: socket.userId,
+            name: socket.user.name,
+            avatar: socket.user.avatar,
+          },
+          offer,
+          callType, // 'voice' or 'video'
+        });
+      });
+
+      socket.on("answer-call", ({ to, answer }) => {
+        io.to(to).emit("call-answered", {
+          from: socket.userId,
+          answer,
+        });
+      });
+
+      socket.on("reject-call", ({ to }) => {
+        io.to(to).emit("call-rejected", {
+          from: socket.userId,
+        });
+      });
+
+      socket.on("end-call", ({ to }) => {
+        io.to(to).emit("call-ended", {
+          from: socket.userId,
+        });
+      });
+
+      socket.on("ice-candidate", ({ to, candidate }) => {
+        io.to(to).emit("ice-candidate", {
+          from: socket.userId,
+          candidate,
+        });
+      });
+
+      // Handle message editing
+      socket.on("edit-message", async ({ messageId, newContent }) => {
+        try {
+          const message = await Message.findOne({
+            _id: messageId,
+            sender: socket.userId,
+          });
+
+          if (message) {
+            message.content = newContent;
+            message.edited = true;
+            message.editedAt = Date.now();
+            await message.save();
+
+            io.to(message.conversationId.toString()).emit("message-edited", {
+              messageId,
+              newContent,
+              editedAt: message.editedAt,
+            });
+          }
+        } catch (error) {
+          console.error("Error editing message:", error);
+        }
+      });
+
+      // Handle message starring
+      socket.on("star-message", async ({ messageId }) => {
+        try {
+          const message = await Message.findById(messageId);
+          if (message && !message.starred.includes(socket.userId)) {
+            message.starred.push(socket.userId);
+            await message.save();
+
+            socket.emit("message-starred", { messageId });
+          }
+        } catch (error) {
+          console.error("Error starring message:", error);
+        }
+      });
+
+      socket.on("unstar-message", async ({ messageId }) => {
+        try {
+          const message = await Message.findById(messageId);
+          if (message) {
+            message.starred = message.starred.filter(
+              id => id.toString() !== socket.userId
+            );
+            await message.save();
+
+            socket.emit("message-unstarred", { messageId });
+          }
+        } catch (error) {
+          console.error("Error unstarring message:", error);
+        }
+      });
+
+      // Handle message read receipts
+      socket.on("mark-messages-read", async ({ conversationId }) => {
+        try {
+          const messages = await Message.find({
+            conversationId,
+            sender: { $ne: socket.userId },
+          });
+
+          for (const message of messages) {
+            if (!message.readBy.some(r => r.userId.toString() === socket.userId)) {
+              await message.markAsRead(socket.userId);
+
+              // Notify sender
+              io.to(message.sender.toString()).emit("message-read", {
+                messageId: message._id,
+                readBy: socket.userId,
+                readAt: Date.now(),
+              });
+            }
+          }
+
+          // Reset unread count
+          const conversation = await Conversation.findById(conversationId);
+          if (conversation) {
+            await conversation.resetUnread(socket.userId);
+          }
+        } catch (error) {
+          console.error("Error marking messages as read:", error);
+        }
+      });
+
+      // Handle recording status (for voice messages)
+      socket.on("recording-voice", ({ conversationId }) => {
+        socket.to(conversationId).emit("user-recording-voice", {
+          userId: socket.userId,
+          conversationId,
+        });
+      });
+
+      socket.on("stopped-recording-voice", ({ conversationId }) => {
+        socket.to(conversationId).emit("user-stopped-recording-voice", {
+          userId: socket.userId,
+          conversationId,
+        });
+      });
+
+      // Handle disconnect
+      socket.on("disconnect", async () => {
+        console.log(`❌ User disconnected: ${socket.userId}`);
+
+        // Remove from active users
+        activeUsers.delete(socket.userId);
+
+        // Update user status to offline
+        await User.findByIdAndUpdate(socket.userId, {
+          status: 'offline',
+          lastSeen: Date.now(),
+          socketId: '',
+        });
+
+        // Broadcast offline status
+        socket.broadcast.emit('user-status-changed', {
+          userId: socket.userId,
+          status: 'offline',
+          lastSeen: Date.now(),
+        });
+      });
+
+    } catch (error) {
+      console.error("Socket connection error:", error);
+    }
   });
 
   return io;

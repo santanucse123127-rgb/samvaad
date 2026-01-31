@@ -64,5 +64,44 @@ export const messageAPI = {
   markAsRead: (id) => API.put(`/messages/${id}/read`),
   deleteMessage: (id, deleteFor) => API.delete(`/messages/${id}`, { data: { deleteFor } }),
 };
+const API_URL = 'http://localhost:5000/api';
+
+// ... your existing api functions ...
+
+// Add these new functions:
+export const getUsers = async (token) => {
+  try {
+    const response = await fetch(`${API_URL}/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
+
+export const createConversation = async (participantId, token) => {
+  try {
+    const response = await fetch(`${API_URL}/conversations/create`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        participantId,
+        type: 'one-on-one',
+      }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    throw error;
+  }
+};
 
 export default API;

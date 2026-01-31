@@ -1,6 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server as socketIO } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -21,11 +21,29 @@ const app = express();
 const httpServer = createServer(app);
 
 // Socket.io setup
-const io = new Server(httpServer, {
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: process.env.CLIENT_URL || "http://localhost:8080",
+//     credentials: true,
+//   },
+// });
+
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: "*",
+//     methods: ["GET", "POST"],
+//     credentials: true,
+//   },
+// });
+const io = new socketIO(httpServer, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:8080",
+    methods: ["GET", "POST"],
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,        // 60 seconds before timeout
+  pingInterval: 25000,       // Send ping every 25 seconds
 });
 
 // Connect to MongoDB
@@ -34,10 +52,16 @@ connectDB();
 // Middleware
 app.use(helmet());
 app.use(compression());
+// app.use(cors({
+//   origin: "http://localhost:8080",
+//   credentials: true,
+// }));
+
 app.use(cors({
-  origin: "http://localhost:8080",
+  origin: "*",
   credentials: true,
 }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

@@ -2,7 +2,7 @@ import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import { uploadToCloudinary } from "../config/cloudinary.js";
 
-// @desc    Get messages for a conversation
+// @desc    Get messages for a conversation with pagination
 // @route   GET /api/messages/:conversationId
 // @access  Private
 export const getMessages = async (req, res) => {
@@ -25,20 +25,34 @@ export const getMessages = async (req, res) => {
       });
     }
 
+    // Get messages with optimized query
     const messages = await Message.find({
       conversationId,
-      deleted: false,
-      deletedFor: { $ne: req.user._id },
+      $or: [
+        { deleted: false },
+        { deleted: true, deletedFor: { $ne: req.user._id } }
+      ],
+      deletedForEveryone: false,
     })
-      .populate("sender", "name avatar")
+      .populate("sender", "name avatar status lastSeen")
+      .populate({
+        path: "replyTo",
+        select: "content sender type mediaUrl",
+        populate: {
+          path: "sender",
+          select: "name"
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Use lean() for better performance
 
     const total = await Message.countDocuments({
       conversationId,
       deleted: false,
       deletedFor: { $ne: req.user._id },
+      deletedForEveryone: false,
     });
 
     res.json({
@@ -49,6 +63,7 @@ export const getMessages = async (req, res) => {
         limit,
         total,
         pages: Math.ceil(total / limit),
+        hasMore: page < Math.ceil(total / limit),
       },
     });
   } catch (error) {
@@ -65,9 +80,8 @@ export const getMessages = async (req, res) => {
 // @access  Private
 export const sendMessage = async (req, res) => {
   try {
-    const { conversationId, content, type, replyTo } = req.body;
+    const { conversationId, content, type, replyTo, mentions } = req.body;
 
-    // Verify conversation exists and user is participant
     const conversation = await Conversation.findOne({
       _id: conversationId,
       participants: req.user._id,
@@ -87,9 +101,11 @@ export const sendMessage = async (req, res) => {
       content,
       type: type || "text",
       replyTo: replyTo || null,
+      mentions: mentions || [],
+      status: 'sent',
     });
 
-    // Update conversation's last message
+    // Update conversation
     conversation.lastMessage = message._id;
     conversation.updatedAt = Date.now();
 
@@ -107,23 +123,39 @@ export const sendMessage = async (req, res) => {
 
     await conversation.save();
 
-    const populatedMessage = await Message.findById(message._id).populate(
-      "sender",
-      "name avatar"
-    );
+    // Populate message before sending
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "name avatar status")
+      .populate({
+        path: "replyTo",
+        select: "content sender type",
+        populate: {
+          path: "sender",
+          select: "name"
+        }
+      });
 
     // Emit socket event
     const io = req.app.get("io");
-if (!io) {
-  console.warn("Socket.io instance not found");
-  return;
-}
 
+    if (io) {
+      // Send to all participants in the conversation
+      io.to(conversation._id.toString()).emit(
+        "message-received",
+        populatedMessage
+      );
 
-    io.to(conversation._id.toString()).emit(
-      "message-received",
-      populatedMessage
-    );
+      // Send notifications to mentioned users
+      if (mentions && mentions.length > 0) {
+        mentions.forEach(userId => {
+          io.to(userId.toString()).emit("mentioned-in-message", {
+            messageId: message._id,
+            conversationId: conversation._id,
+            sender: req.user._id,
+          });
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -138,7 +170,7 @@ if (!io) {
   }
 };
 
-// @desc    Upload media
+// @desc    Upload media (image/video/file/voice)
 // @route   POST /api/messages/upload-media
 // @access  Private
 export const uploadMedia = async (req, res) => {
@@ -150,9 +182,8 @@ export const uploadMedia = async (req, res) => {
       });
     }
 
-    const { conversationId, type } = req.body;
+    const { conversationId, type, replyTo, duration } = req.body;
 
-    // Verify conversation
     const conversation = await Conversation.findOne({
       _id: conversationId,
       participants: req.user._id,
@@ -165,26 +196,34 @@ export const uploadMedia = async (req, res) => {
       });
     }
 
-    // Upload to Cloudinary
+    // Determine folder based on type
     const folder =
       type === "image"
-        ? "samvad/images"
+        ? "nexus/images"
         : type === "video"
-        ? "samvad/videos"
-        : "samvad/files";
+        ? "nexus/videos"
+        : type === "voice"
+        ? "nexus/voice"
+        : "nexus/files";
 
+    // Upload to Cloudinary
     const result = await uploadToCloudinary(req.file.buffer, folder);
 
     // Create message with media
     const message = await Message.create({
-  conversationId,
-  sender: req.user._id,
-  content,
-  type: type || "text",
-  status: "sent",
-  replyTo: replyTo || null,
-});
-
+      conversationId,
+      sender: req.user._id,
+      content: type === 'file' ? req.file.originalname : result.url,
+      type: type || "image",
+      mediaUrl: result.url,
+      mediaType: result.resource_type,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      duration: duration || null,
+      thumbnail: result.eager?.[0]?.secure_url || null,
+      replyTo: replyTo || null,
+      status: "sent",
+    });
 
     // Update conversation
     conversation.lastMessage = message._id;
@@ -205,30 +244,18 @@ export const uploadMedia = async (req, res) => {
 
     const populatedMessage = await Message.findById(message._id).populate(
       "sender",
-      "name avatar"
+      "name avatar status"
     );
 
     // Emit socket event
     const io = req.app.get("io");
-if (!io) {
-  console.warn("Socket.io instance not found");
-  return;
-}
+    if (io) {
+      io.to(conversation._id.toString()).emit(
+        "message-received",
+        populatedMessage
+      );
+    }
 
-
-
-    // conversation.participants.forEach((participantId) => {
-    //   if (participantId.toString() !== req.user._id.toString()) {
-    //     io.to(conversation._id.toString()).emit(
-    //       "message-received",
-    //       populatedMessage
-    //     );
-    //   }
-    // });
-    io.to(conversation._id.toString()).emit(
-          "message-received",
-          populatedMessage
-        );
     res.status(201).json({
       success: true,
       data: populatedMessage,
@@ -256,50 +283,38 @@ export const markAsRead = async (req, res) => {
       });
     }
 
-    // Check if already read by this user
-    const alreadyRead = message.readBy.some(
-      (read) => read.userId.toString() === req.user._id.toString()
-    );
-
-    if (!alreadyRead) {
-      message.readBy.push({
-        userId: req.user._id,
-        readAt: Date.now(),
+    // Don't mark own messages as read
+    if (message.sender.toString() === req.user._id.toString()) {
+      return res.json({
+        success: true,
+        data: message,
       });
+    }
 
-      // Update status
-      const conversation = await Conversation.findById(message.conversationId);
-      const allRead = conversation.participants.every((p) =>
-        message.readBy.some((r) => r.userId.toString() === p.toString())
-      );
+    // Mark as read
+    await message.markAsRead(req.user._id);
 
-      if (allRead) {
-        message.status = "read";
-      } else if (message.status === "sent") {
-        message.status = "delivered";
-      }
-
-      await message.save();
-
-      // Update unread count
+    // Update conversation unread count
+    const conversation = await Conversation.findById(message.conversationId);
+    if (conversation) {
       const currentCount =
         conversation.unreadCount.get(req.user._id.toString()) || 0;
       if (currentCount > 0) {
-        conversation.unreadCount.set(req.user._id.toString(), currentCount - 1);
+        conversation.unreadCount.set(
+          req.user._id.toString(),
+          currentCount - 1
+        );
         await conversation.save();
       }
+    }
 
-      // Emit socket event
-      const io = req.app.get("io");
-if (!io) {
-  console.warn("Socket.io instance not found");
-  return;
-}
-
-
-      io.to(message.conversationId.toString()).emit("message-read", {
+    // Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.to(message.sender.toString()).emit("message-read", {
         messageId: message._id,
-        readerId: req.user._id,
+        readBy: req.user._id,
+        readAt: Date.now(),
       });
     }
 
@@ -340,7 +355,18 @@ export const deleteMessage = async (req, res) => {
     }
 
     if (deleteFor === "everyone") {
-      message.deleted = true;
+      // Check if message is less than 1 hour old (WhatsApp-like behavior)
+      const messageAge = Date.now() - new Date(message.createdAt).getTime();
+      const oneHour = 60 * 60 * 1000;
+
+      if (messageAge > oneHour) {
+        return res.status(400).json({
+          success: false,
+          message: "Messages can only be deleted for everyone within 1 hour",
+        });
+      }
+
+      message.deletedForEveryone = true;
       message.content = "This message was deleted";
     } else {
       message.deletedFor.push(req.user._id);
@@ -350,23 +376,109 @@ export const deleteMessage = async (req, res) => {
 
     // Emit socket event
     const io = req.app.get("io");
-if (!io) {
-  console.warn("Socket.io instance not found");
-  return;
-}
-
-
-    const conversation = await Conversation.findById(message.conversationId);
-    io.to(conversation._id.toString()).emit("message-deleted", {
-  messageId: message._id,
-  conversationId: conversation._id,
-  deleteFor,
-});
-
+    if (io) {
+      const conversation = await Conversation.findById(message.conversationId);
+      io.to(conversation._id.toString()).emit("message-deleted", {
+        messageId: message._id,
+        conversationId: conversation._id,
+        deleteFor,
+      });
+    }
 
     res.json({
       success: true,
       message: "Message deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Forward message
+// @route   POST /api/messages/:id/forward
+// @access  Private
+export const forwardMessage = async (req, res) => {
+  try {
+    const { conversationIds } = req.body;
+    const originalMessage = await Message.findById(req.params.id);
+
+    if (!originalMessage) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found",
+      });
+    }
+
+    const forwardedMessages = [];
+
+    for (const conversationId of conversationIds) {
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: req.user._id,
+      });
+
+      if (conversation) {
+        const forwardedMessage = await Message.create({
+          conversationId,
+          sender: req.user._id,
+          content: originalMessage.content,
+          type: originalMessage.type,
+          mediaUrl: originalMessage.mediaUrl,
+          mediaType: originalMessage.mediaType,
+          forwarded: true,
+          status: 'sent',
+        });
+
+        // Update conversation
+        conversation.lastMessage = forwardedMessage._id;
+        conversation.updatedAt = Date.now();
+        await conversation.save();
+
+        const populatedMessage = await Message.findById(forwardedMessage._id)
+          .populate("sender", "name avatar");
+
+        forwardedMessages.push(populatedMessage);
+
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+          io.to(conversationId).emit("message-received", populatedMessage);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      data: forwardedMessages,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get starred messages
+// @route   GET /api/messages/starred
+// @access  Private
+export const getStarredMessages = async (req, res) => {
+  try {
+    const messages = await Message.find({
+      starred: req.user._id,
+    })
+      .populate("sender", "name avatar")
+      .populate("conversationId", "type groupName participants")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: messages,
     });
   } catch (error) {
     console.error(error);

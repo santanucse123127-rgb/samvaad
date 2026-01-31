@@ -127,74 +127,93 @@ class SocketService {
   }
 
   connect(token) {
-    const SOCKET_URL = 'http://localhost:5000';
-    this.socket = io(SOCKET_URL, {
+    console.log('🔌 Attempting to connect socket with token:', token ? 'Token exists' : 'No token');
+    
+    this.socket = io('http://localhost:5000', {
       auth: { token },
+      transports: ['websocket', 'polling'],
       reconnection: true,
+      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ Socket connected');
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+      console.log('✅ Socket connected:', this.socket.id);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('❌ Socket connection error:', error.message);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected:', reason);
+    });
+
+    this.socket.on('error', (error) => {
+      console.error('❌ Socket error:', error);
     });
   }
 
   disconnect() {
     if (this.socket) {
+      console.log('🔌 Disconnecting socket');
       this.socket.disconnect();
-      this.socket = null;
     }
   }
 
-  joinConversation(conversationId) {
+  emit(event, data) {
     if (this.socket) {
-      this.socket.emit('join-chat', conversationId);
-    }
-  }
-
-  leaveConversation(conversationId) {
-    if (this.socket) {
-      this.socket.emit('leave-chat', conversationId);
-    }
-  }
-
-  sendTyping(conversationId) {
-    if (this.socket) {
-      this.socket.emit('typing', { conversationId });
-    }
-  }
-
-  sendStopTyping(conversationId) {
-    if (this.socket) {
-      this.socket.emit('stop-typing', { conversationId });
+      console.log(`📤 Emitting event: ${event}`, data);
+      this.socket.emit(event, data);
+    } else {
+      console.error('❌ Socket not connected, cannot emit:', event);
     }
   }
 
   on(event, callback) {
     if (this.socket) {
-      this.socket.on(event, callback);
+      console.log(`👂 Listening for event: ${event}`);
+      this.socket.on(event, (data) => {
+        console.log(`📥 Received event: ${event}`, data);
+        callback(data);
+      });
+    } else {
+      console.error('❌ Socket not connected, cannot listen to:', event);
     }
   }
 
   off(event) {
     if (this.socket) {
+      console.log(`🔇 Removing listener for: ${event}`);
       this.socket.off(event);
     }
   }
 
   removeAllListeners() {
     if (this.socket) {
+      console.log('🔇 Removing all listeners');
       this.socket.removeAllListeners();
     }
+  }
+
+  joinConversation(conversationId) {
+    console.log('📍 Joining conversation room:', conversationId);
+    this.emit('join-conversation', conversationId);
+  }
+
+  leaveConversation(conversationId) {
+    console.log('📍 Leaving conversation room:', conversationId);
+    this.emit('leave-conversation', conversationId);
+  }
+
+  sendTyping(conversationId) {
+    console.log('⌨️ Sending typing indicator for:', conversationId);
+    this.emit('typing', { conversationId });
+  }
+
+  sendStopTyping(conversationId) {
+    console.log('⌨️ Stopping typing indicator for:', conversationId);
+    this.emit('stop-typing', { conversationId });
   }
 }
 

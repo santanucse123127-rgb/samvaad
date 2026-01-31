@@ -5,12 +5,13 @@ import {
   uploadAvatar,
   searchUsers,
   getUserById,
+  getUsers,
 } from '../controllers/userController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { upload, handleMulterError } from '../middlewares/uploadMiddleware.js';
 
 const router = express.Router();
-
+router.get('/',protect, getUsers);
 router.put('/profile', protect, updateProfile);
 router.put('/theme', protect, updateTheme);
 router.post('/upload-avatar', protect, upload.single('avatar'), handleMulterError, uploadAvatar);

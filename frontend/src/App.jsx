@@ -23,7 +23,8 @@ import { ChatProvider } from "./context/ChatContext";
 const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
-  const { user } = useAuth();
+  const { user,token } = useAuth();
+  console.log("User : ",user)
   const location = useLocation();
 
   return (
@@ -36,8 +37,8 @@ const AnimatedRoutes = () => {
           path="/chat"
           element={
             user ? (
-              <ChatProvider>
-                <Chat />
+              <ChatProvider token={token} userId={user?._id}>
+                <Chat token={token}/>
               </ChatProvider>
             ) : (
               <Navigate to="/login" />
@@ -67,7 +68,7 @@ const AppContent = () => {
       <CustomCursor />
       <NoiseOverlay />
       
-      <Navbar isDark={isDark} toggleTheme={toggleTheme} />
+      {/* <Navbar isDark={isDark} toggleTheme={toggleTheme} /> */}
       <AnimatedRoutes />
     </>
   );
