@@ -39,7 +39,6 @@ const io = new socketIO(httpServer, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:8080",
     methods: ["GET", "POST"],
-    credentials: true,
   },
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,        // 60 seconds before timeout
@@ -59,7 +58,6 @@ app.use(compression());
 
 app.use(cors({
   origin: "*",
-  credentials: true,
 }));
 
 app.use(express.json({ limit: '50mb' }));

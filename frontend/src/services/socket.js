@@ -129,7 +129,7 @@ class SocketService {
   connect(token) {
     console.log('🔌 Attempting to connect socket with token:', token ? 'Token exists' : 'No token');
     
-    this.socket = io('http://localhost:5000', {
+    this.socket = io(import.meta.env.VITE_SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
