@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import compression from 'compression';
 import connectDB from './config/db.js';
 import { initializeSocket } from './socket/socketHandler.js';
+import Message from './models/Message.js';
+import Conversation from './models/Conversation.js';
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -89,6 +91,51 @@ app.use((err, req, res, next) => {
     message: err.message || 'Server Error',
   });
 });
+
+// Scheduled Message Checker
+const checkScheduledMessages = async (io) => {
+  try {
+    const now = new Date();
+    const scheduledMessages = await Message.find({
+      status: 'scheduled',
+      isScheduled: true,
+      scheduledAt: { $lte: now },
+    }).populate('sender', 'name avatar status');
+
+    for (const message of scheduledMessages) {
+      // Update message status
+      message.status = 'sent';
+      message.isScheduled = false; // Mark as processed
+      await message.save();
+
+      // Update conversation
+      const conversation = await Conversation.findById(message.conversationId);
+      if (conversation) {
+        conversation.lastMessage = message._id;
+        conversation.updatedAt = Date.now();
+
+        // Update unread counts
+        conversation.participants.forEach((participantId) => {
+          if (participantId.toString() !== message.sender._id.toString()) {
+            const currentCount = conversation.unreadCount.get(participantId.toString()) || 0;
+            conversation.unreadCount.set(participantId.toString(), currentCount + 1);
+          }
+        });
+        await conversation.save();
+
+        // Emit socket event
+        if (io) {
+          io.to(conversation._id.toString()).emit('message-received', message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking scheduled messages:', error);
+  }
+};
+
+// Run scheduler every minute
+setInterval(() => checkScheduledMessages(io), 60000);
 
 const PORT = process.env.PORT || 5000;
 

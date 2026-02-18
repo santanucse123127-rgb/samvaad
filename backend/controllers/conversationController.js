@@ -169,7 +169,7 @@ export const deleteConversation = async (req, res) => {
 export const updateGroupInfo = async (req, res) => {
   try {
     const { groupName, groupAvatar } = req.body;
-    
+
     const conversation = await Conversation.findOne({
       _id: req.params.id,
       type: 'group',
@@ -187,6 +187,199 @@ export const updateGroupInfo = async (req, res) => {
     if (groupAvatar) conversation.groupAvatar = groupAvatar;
 
     await conversation.save();
+
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'name email avatar status lastSeen');
+
+    res.json({
+      success: true,
+      data: populatedConversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Add participant to group
+// @route   PUT /api/conversations/:id/participants
+// @access  Private
+export const addParticipant = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      groupAdmin: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found or you are not the admin',
+      });
+    }
+
+    await conversation.addParticipant(userId);
+
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'name email avatar status lastSeen');
+
+    res.json({
+      success: true,
+      data: populatedConversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Remove participant from group
+// @route   DELETE /api/conversations/:id/participants
+// @access  Private
+export const removeParticipant = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      groupAdmin: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found or you are not the admin',
+      });
+    }
+
+    await conversation.removeParticipant(userId);
+
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'name email avatar status lastSeen');
+
+    res.json({
+      success: true,
+      data: populatedConversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Leave group
+// @route   POST /api/conversations/:id/leave
+// @access  Private
+export const leaveGroup = async (req, res) => {
+  try {
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found',
+      });
+    }
+
+    await conversation.removeParticipant(req.user._id);
+
+    // If admin leaves, assign new admin if possible (simplified: just remove from admin list)
+    if (conversation.groupAdmin.includes(req.user._id)) {
+      conversation.groupAdmin = conversation.groupAdmin.filter(
+        id => id.toString() !== req.user._id.toString()
+      );
+      // If no admins left and participants exist, make first participant admin
+      if (conversation.groupAdmin.length === 0 && conversation.participants.length > 0) {
+        conversation.groupAdmin.push(conversation.participants[0]);
+      }
+      await conversation.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Left group successfully',
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Make user admin
+// @route   PUT /api/conversations/:id/admins
+// @access  Private
+export const makeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      groupAdmin: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found or you are not the admin',
+      });
+    }
+
+    await conversation.addAdmin(userId);
+
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'name email avatar status lastSeen');
+
+    res.json({
+      success: true,
+      data: populatedConversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Remove admin
+// @route   DELETE /api/conversations/:id/admins
+// @access  Private
+export const removeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      groupAdmin: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found or you are not the admin',
+      });
+    }
+
+    await conversation.removeAdmin(userId);
 
     const populatedConversation = await Conversation.findById(conversation._id)
       .populate('participants', 'name email avatar status lastSeen');

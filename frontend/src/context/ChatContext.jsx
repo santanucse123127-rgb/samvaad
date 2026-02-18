@@ -140,27 +140,27 @@ export const ChatProvider = ({ children, token, userId }) => {
     // });
 
     socketService.on("message-received", (message) => {
-  const transformedMessage = transformMessage(message);
+      const transformedMessage = transformMessage(message);
 
-  // ALWAYS cache per conversation
-  const convId = message.conversationId;
-  const cached = messagesCache.current[convId] || [];
-  messagesCache.current[convId] = [...cached, transformedMessage];
+      // ALWAYS cache per conversation
+      const convId = message.conversationId;
+      const cached = messagesCache.current[convId] || [];
+      messagesCache.current[convId] = [...cached, transformedMessage];
 
-  const currentConv = selectedConversationRef.current;
+      const currentConv = selectedConversationRef.current;
 
-  // Only update UI if this conversation is open
-  if (currentConv && currentConv._id === convId) {
-    setMessages(messagesCache.current[convId]);
-  }
+      // Only update UI if this conversation is open
+      if (currentConv && currentConv._id === convId) {
+        setMessages(messagesCache.current[convId]);
+      }
 
-  updateConversationsList(message);
+      updateConversationsList(message);
 
-  // Notification for background chats
-  if (!currentConv || currentConv._id !== convId) {
-    playNotificationSound();
-  }
-});
+      // Notification for background chats
+      if (!currentConv || currentConv._id !== convId) {
+        playNotificationSound();
+      }
+    });
 
 
     // Typing indicators
@@ -402,7 +402,7 @@ export const ChatProvider = ({ children, token, userId }) => {
   //   }
   // };
 
-  const sendMessage = async (content, type = "text", replyTo = null) => {
+  const sendMessage = async (content, type = "text", replyTo = null, extraData = {}) => {
     if (!selectedConversation || !token) return { success: false };
 
     // 🔥 optimistic message
@@ -414,6 +414,7 @@ export const ChatProvider = ({ children, token, userId }) => {
       status: "sending",
       type,
       replyTo,
+      ...extraData,
     };
 
     setMessages((prev) => {
@@ -429,6 +430,7 @@ export const ChatProvider = ({ children, token, userId }) => {
           content,
           type,
           replyTo,
+          ...extraData,
         },
         token,
       );
@@ -495,15 +497,66 @@ export const ChatProvider = ({ children, token, userId }) => {
     }
   };
 
+  const createGroupConversation = async (participantIds, name) => {
+    try {
+      if (!token) return { success: false };
+      const response = await api.createGroupConversation(participantIds, name, token);
+      if (response.success) {
+        const newConversation = response.data;
+        setConversations((prev) => [newConversation, ...prev]);
+        setSelectedConversation(newConversation);
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to create group:", error);
+      return { success: false };
+    }
+  };
+
+  const addParticipant = async (userId) => {
+    if (!selectedConversation || !token) return;
+    await api.addParticipant(selectedConversation._id, userId, token);
+  };
+
+  const removeParticipant = async (userId) => {
+    if (!selectedConversation || !token) return;
+    await api.removeParticipant(selectedConversation._id, userId, token);
+  };
+
+  const leaveGroup = async () => {
+    if (!selectedConversation || !token) return;
+    const response = await api.leaveGroup(selectedConversation._id, token);
+    if (response.success) {
+      setSelectedConversation(null);
+      setConversations(prev => prev.filter(c => c._id !== selectedConversation._id));
+    }
+  };
+
+  const makeAdmin = async (userId) => {
+    if (!selectedConversation || !token) return;
+    await api.makeAdmin(selectedConversation._id, userId, token);
+  };
+
+  const removeAdmin = async (userId) => {
+    if (!selectedConversation || !token) return;
+    await api.removeAdmin(selectedConversation._id, userId, token);
+  };
+
+  const votePoll = async (messageId, optionIndex) => {
+    if (!token) return;
+    await api.votePoll(messageId, optionIndex, token);
+  };
+
   const updateConversationsList = useCallback((message) => {
     setConversations((prev) => {
       const updated = prev.map((conv) =>
         conv._id === message.conversationId
           ? {
-              ...conv,
-              lastMessage: message,
-              updatedAt: new Date(),
-            }
+            ...conv,
+            lastMessage: message,
+            updatedAt: new Date(),
+          }
           : conv,
       );
       return updated.sort(
@@ -618,6 +671,14 @@ export const ChatProvider = ({ children, token, userId }) => {
     getLastSeen,
     addReaction,
     removeReaction,
+    createGroupConversation,
+    addParticipant,
+    removeParticipant,
+    leaveGroup,
+    makeAdmin,
+    removeAdmin,
+    votePoll,
+    userId,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

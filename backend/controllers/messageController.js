@@ -80,7 +80,18 @@ export const getMessages = async (req, res) => {
 // @access  Private
 export const sendMessage = async (req, res) => {
   try {
-    const { conversationId, content, type, replyTo, mentions } = req.body;
+    const {
+      conversationId,
+      content,
+      type,
+      replyTo,
+      mentions,
+      pollQuestion,
+      pollOptions,
+      allowMultipleAnswers,
+      scheduledAt,
+      codeLanguage
+    } = req.body;
 
     const conversation = await Conversation.findOne({
       _id: conversationId,
@@ -94,8 +105,8 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Create message
-    const message = await Message.create({
+    // Prepare message data
+    const messageData = {
       conversationId,
       sender: req.user._id,
       content,
@@ -103,7 +114,38 @@ export const sendMessage = async (req, res) => {
       replyTo: replyTo || null,
       mentions: mentions || [],
       status: 'sent',
-    });
+    };
+
+    // Handle Polls
+    if (type === 'poll') {
+      messageData.pollQuestion = pollQuestion;
+      messageData.pollOptions = pollOptions.map(opt => ({ text: opt, votes: [] }));
+      messageData.allowMultipleAnswers = allowMultipleAnswers;
+    }
+
+    // Handle Code
+    if (type === 'code') {
+      messageData.codeLanguage = codeLanguage;
+    }
+
+    // Handle Scheduling
+    if (scheduledAt) {
+      messageData.scheduledAt = scheduledAt;
+      messageData.isScheduled = true;
+      messageData.status = 'scheduled';
+    }
+
+    // Create message
+    const message = await Message.create(messageData);
+
+    // If scheduled, don't update conversation lastMessage or notify yet
+    if (message.isScheduled) {
+      return res.status(201).json({
+        success: true,
+        data: message,
+        message: 'Message scheduled successfully'
+      });
+    }
 
     // Update conversation
     conversation.lastMessage = message._id;
@@ -201,10 +243,10 @@ export const uploadMedia = async (req, res) => {
       type === "image"
         ? "nexus/images"
         : type === "video"
-        ? "nexus/videos"
-        : type === "voice"
-        ? "nexus/voice"
-        : "nexus/files";
+          ? "nexus/videos"
+          : type === "voice"
+            ? "nexus/voice"
+            : "nexus/files";
 
     // Upload to Cloudinary
     const result = await uploadToCloudinary(req.file.buffer, folder);
@@ -479,6 +521,73 @@ export const getStarredMessages = async (req, res) => {
     res.json({
       success: true,
       data: messages,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Vote on a poll
+// @route   PUT /api/messages/:id/vote
+// @access  Private
+export const votePoll = async (req, res) => {
+  try {
+    const { optionIndex } = req.body;
+    const message = await Message.findById(req.params.id);
+
+    if (!message || message.type !== 'poll') {
+      return res.status(404).json({
+        success: false,
+        message: "Poll not found",
+      });
+    }
+
+    const userId = req.user._id;
+
+    // Handle multiple answers restriction
+    if (!message.allowMultipleAnswers) {
+      // Remove user from all other options
+      message.pollOptions.forEach((opt, idx) => {
+        if (idx !== optionIndex) {
+          opt.votes = opt.votes.filter(id => id.toString() !== userId.toString());
+        }
+      });
+    }
+
+    // Toggle vote for the selected option
+    const option = message.pollOptions[optionIndex];
+    if (!option) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid option index",
+      });
+    }
+
+    const voteIndex = option.votes.indexOf(userId);
+
+    if (voteIndex > -1) {
+      option.votes.splice(voteIndex, 1);
+    } else {
+      option.votes.push(userId);
+    }
+
+    await message.save();
+
+    // Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.to(message.conversationId.toString()).emit("poll-updated", {
+        messageId: message._id,
+        pollOptions: message.pollOptions,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: message,
     });
   } catch (error) {
     console.error(error);

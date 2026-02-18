@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['text', 'image', 'video', 'file', 'audio', 'voice'],
+    enum: ['text', 'image', 'video', 'file', 'audio', 'voice', 'poll', 'code'],
     default: 'text',
   },
   mediaUrl: {
@@ -39,6 +39,34 @@ const messageSchema = new mongoose.Schema({
   },
   thumbnail: {
     type: String, // for videos
+  },
+  // Poll fields
+  pollQuestion: {
+    type: String,
+  },
+  pollOptions: [{
+    text: String,
+    votes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+  }],
+  allowMultipleAnswers: {
+    type: Boolean,
+    default: false,
+  },
+  // Scheduled message fields
+  scheduledAt: {
+    type: Date,
+  },
+  isScheduled: {
+    type: Boolean,
+    default: false,
+  },
+  // Code snippet fields
+  codeLanguage: {
+    type: String,
+    default: 'javascript',
   },
   status: {
     type: String,
@@ -121,15 +149,15 @@ messageSchema.index({ sender: 1, createdAt: -1 });
 messageSchema.index({ deleted: 1, deletedForEveryone: 1 });
 
 // Virtual for checking if message is read
-messageSchema.virtual('isRead').get(function() {
+messageSchema.virtual('isRead').get(function () {
   return this.status === 'read';
 });
 
 // Method to mark as delivered
-messageSchema.methods.markAsDelivered = function(userId) {
+messageSchema.methods.markAsDelivered = function (userId) {
   if (!this.deliveredTo.some(d => d.userId.toString() === userId.toString())) {
     this.deliveredTo.push({ userId });
-    
+
     // Update status if not already read
     if (this.status === 'sent') {
       this.status = 'delivered';
@@ -139,35 +167,35 @@ messageSchema.methods.markAsDelivered = function(userId) {
 };
 
 // Method to mark as read
-messageSchema.methods.markAsRead = function(userId) {
+messageSchema.methods.markAsRead = function (userId) {
   // Add to readBy if not already there
   if (!this.readBy.some(r => r.userId.toString() === userId.toString())) {
     this.readBy.push({ userId });
   }
-  
+
   // Add to deliveredTo if not already there
   if (!this.deliveredTo.some(d => d.userId.toString() === userId.toString())) {
     this.deliveredTo.push({ userId });
   }
-  
+
   this.status = 'read';
   return this.save();
 };
 
 // Method to add reaction
-messageSchema.methods.addReaction = function(userId, emoji) {
+messageSchema.methods.addReaction = function (userId, emoji) {
   // Remove existing reaction from this user
   this.reactions = this.reactions.filter(
     r => r.userId.toString() !== userId.toString()
   );
-  
+
   // Add new reaction
   this.reactions.push({ userId, emoji });
   return this.save();
 };
 
 // Method to remove reaction
-messageSchema.methods.removeReaction = function(userId) {
+messageSchema.methods.removeReaction = function (userId) {
   this.reactions = this.reactions.filter(
     r => r.userId.toString() !== userId.toString()
   );

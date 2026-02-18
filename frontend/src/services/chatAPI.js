@@ -205,6 +205,77 @@ const api = {
       body: JSON.stringify({ participantIds, name, type: 'group' })
     });
     return response.json();
+  },
+
+  async addParticipant(conversationId, userId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/participants`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  },
+
+  async removeParticipant(conversationId, userId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/participants`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  },
+
+  async leaveGroup(conversationId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/leave`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async makeAdmin(conversationId, userId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/admins`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  },
+
+  async removeAdmin(conversationId, userId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/admins`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  },
+
+  async votePoll(messageId, optionIndex, token) {
+    const response = await fetch(`${API_URL}/messages/${messageId}/vote`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ optionIndex })
+    });
+    return response.json();
   }
 };
 
@@ -229,5 +300,11 @@ export const deleteMessage = api.deleteMessage;
 export const searchUsers = api.searchUsers;
 export const createConversation = api.createConversation;
 export const createGroupConversation = api.createGroupConversation;
+export const addParticipant = api.addParticipant;
+export const removeParticipant = api.removeParticipant;
+export const leaveGroup = api.leaveGroup;
+export const makeAdmin = api.makeAdmin;
+export const removeAdmin = api.removeAdmin;
+export const votePoll = api.votePoll;
 
 export default api;

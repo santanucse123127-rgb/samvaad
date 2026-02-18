@@ -23,11 +23,18 @@ import {
   Star,
   Trash2,
   Edit,
+  Clock,
+  Code,
+  BarChart2,
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
 import NewChatModal from "../components/NewChatModal";
 import MessageItem from "../components/Chat/MessageItem";
 import EmojiPicker from "../components/Chat/EmojiPicker";
+import PollModal from "../components/Chat/PollModal";
+import ScheduleModal from "../components/Chat/ScheduleModal";
+import CodeModal from "../components/Chat/CodeModal";
+import GroupInfoModal from "../components/GroupInfoModal";
 import { getUsers } from "../services/chatAPI";
 
 const Chat = ({ token }) => {
@@ -62,6 +69,12 @@ const Chat = ({ token }) => {
   const [selectedMessages, setSelectedMessages] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [users, setUsers] = useState([]);
+
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -72,24 +85,24 @@ const Chat = ({ token }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  
+
   const fetchUsers = async () => {
-      try {
-        setLoad(true);
-        const response = await getUsers(token);
-        if (response.success) {
-          setUsers(response.data);
-        }
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        setLoad(false);
+    try {
+      setLoad(true);
+      const response = await getUsers(token);
+      if (response.success) {
+        setUsers(response.data);
       }
-    };
-    useEffect(() => {
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoad(false);
+    }
+  };
+  useEffect(() => {
     fetchUsers();
-  },[token])
-    const filteredUsers = users.filter(user =>
+  }, [token])
+  const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -104,8 +117,8 @@ const Chat = ({ token }) => {
 
     if (uploadPreview) {
       const type = uploadPreview.type.startsWith('image/') ? 'image' :
-                   uploadPreview.type.startsWith('video/') ? 'video' :
-                   uploadPreview.type.startsWith('audio/') ? 'voice' : 'file';
+        uploadPreview.type.startsWith('video/') ? 'video' :
+          uploadPreview.type.startsWith('audio/') ? 'voice' : 'file';
       await sendMediaMessage(uploadPreview.file, type);
       setUploadPreview(null);
     } else {
@@ -115,6 +128,28 @@ const Chat = ({ token }) => {
     setNewMessage("");
     setReplyToMessage(null);
     handleStopTyping();
+  };
+
+  const handleCreatePoll = async (pollData) => {
+    await sendMessage(pollData.question, 'poll', null, {
+      pollQuestion: pollData.question,
+      pollOptions: pollData.options,
+      allowMultipleAnswers: pollData.allowMultiple
+    });
+  };
+
+  const handleScheduleMessage = async (date) => {
+    if (!newMessage.trim()) return;
+    await sendMessage(newMessage, 'text', null, {
+      scheduledAt: date
+    });
+    setNewMessage("");
+  };
+
+  const handleSendCode = async (codeData) => {
+    await sendMessage(codeData.code, 'code', null, {
+      codeLanguage: codeData.language
+    });
   };
 
   const handleInputChange = (e) => {
@@ -155,17 +190,17 @@ const Chat = ({ token }) => {
     return result;
   };
 
-      const handleUserClick = async (user) => {
-  console.log('👤 User clicked:', user);
-  console.log('🎯 Calling onCreateChat...');
-  
-  try {
-    const result = await handleNewChat(user);
-    console.log('✅ onCreateChat result:', result);
-  } catch (error) {
-    console.error('❌ Error in handleUserClick:', error);
-  }
-};
+  const handleUserClick = async (user) => {
+    console.log('👤 User clicked:', user);
+    console.log('🎯 Calling onCreateChat...');
+
+    try {
+      const result = await handleNewChat(user);
+      console.log('✅ onCreateChat result:', result);
+    } catch (error) {
+      console.error('❌ Error in handleUserClick:', error);
+    }
+  };
 
   const handleEmojiSelect = (emoji) => {
     setNewMessage((prev) => prev + emoji);
@@ -181,7 +216,7 @@ const Chat = ({ token }) => {
 
   const formatLastSeen = (lastSeen) => {
     if (!lastSeen) return "Last seen recently";
-    
+
     const now = new Date();
     const lastSeenDate = new Date(lastSeen);
     const diffMs = now - lastSeenDate;
@@ -193,7 +228,7 @@ const Chat = ({ token }) => {
     if (diffMins < 60) return `Last seen ${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `Last seen ${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `Last seen ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    
+
     return `Last seen ${lastSeenDate.toLocaleDateString()}`;
   };
 
@@ -251,7 +286,7 @@ const Chat = ({ token }) => {
                   </button>
                 </div>
               </div>
-              
+
               {/* Search Bar */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -346,48 +381,48 @@ const Chat = ({ token }) => {
             </div> */}
 
             <div className=" overflow-y-auto">
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No users found
-              </div>
-            ) : (
-              filteredUsers.map((user) => (
-                <motion.button
-                  key={user._id}
-                  onClick={() => handleUserClick(user)}
-                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-lg font-semibold text-white">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      {user.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {user.email}
-                    </p>
-                  </div>
-                </motion.button>
-              ))
-            )}
-          </div>
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  No users found
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <motion.button
+                    key={user._id}
+                    onClick={() => handleUserClick(user)}
+                    className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                      {user.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-lg font-semibold text-white">
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {user.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {user.email}
+                      </p>
+                    </div>
+                  </motion.button>
+                ))
+              )}
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
@@ -403,7 +438,7 @@ const Chat = ({ token }) => {
             >
               <ArrowLeft className="w-5 h-5 text-gray-400" />
             </button>
-            
+
             {selectedConversation ? (
               <>
                 <div className="relative flex-shrink-0">
@@ -452,7 +487,7 @@ const Chat = ({ token }) => {
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             <motion.button
               className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
@@ -469,6 +504,7 @@ const Chat = ({ token }) => {
               <Video className="w-5 h-5 text-gray-400" />
             </motion.button>
             <motion.button
+              onClick={() => selectedConversation.type === 'group' && setShowGroupInfoModal(true)}
               className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -479,7 +515,7 @@ const Chat = ({ token }) => {
         </div>
 
         {/* Messages Area */}
-        <div 
+        <div
           ref={messageContainerRef}
           className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-[#0a0f1e] via-[#0d1425] to-[#0a0f1e] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
         >
@@ -517,7 +553,7 @@ const Chat = ({ token }) => {
                   index={index}
                 />
               ))}
-              
+
               {isTyping && (
                 <motion.div
                   className="flex justify-start"
@@ -618,7 +654,7 @@ const Chat = ({ token }) => {
               <EmojiPicker onEmojiSelect={handleEmojiSelect} />
             </div>
           )}
-          
+
           <form onSubmit={handleSendMessage} className="flex items-center gap-3">
             <input
               type="file"
@@ -627,7 +663,7 @@ const Chat = ({ token }) => {
               onChange={handleFileSelect}
               accept="image/*,video/*,.pdf,.doc,.docx,audio/*"
             />
-            
+
             <motion.button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -637,7 +673,53 @@ const Chat = ({ token }) => {
             >
               <Paperclip className="w-5 h-5 text-gray-400" />
             </motion.button>
-            
+
+            {/* Attach Menu */}
+            <div className="relative">
+              <motion.button
+                type="button"
+                onClick={() => setShowAttachMenu(!showAttachMenu)}
+                className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className={`w-5 h-5 text-gray-400 transition-transform ${showAttachMenu ? 'rotate-45' : ''}`} />
+              </motion.button>
+
+              <AnimatePresence>
+                {showAttachMenu && (
+                  <motion.div
+                    className="absolute bottom-full left-0 mb-2 p-2 bg-gray-800 rounded-xl shadow-xl flex flex-col gap-1 border border-gray-700 min-w-[140px]"
+                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}
+                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
+                    >
+                      <BarChart2 className="w-4 h-4 text-purple-400" /> Poll
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}
+                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
+                    >
+                      <Code className="w-4 h-4 text-blue-400" /> Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}
+                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
+                    >
+                      <Clock className="w-4 h-4 text-yellow-400" /> Schedule
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -655,7 +737,7 @@ const Chat = ({ token }) => {
                 <Smile className="w-5 h-5 text-gray-400 hover:text-gray-300" />
               </button>
             </div>
-            
+
             {newMessage.trim() || uploadPreview ? (
               <motion.button
                 type="submit"
@@ -670,11 +752,10 @@ const Chat = ({ token }) => {
               <motion.button
                 type="button"
                 onClick={() => setIsRecording(!isRecording)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all ${
-                  isRecording
+                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all ${isRecording
                     ? "bg-red-600 shadow-red-500/30 animate-pulse"
                     : "bg-gradient-to-r from-purple-600 to-blue-600 shadow-purple-500/30"
-                }`}
+                  }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={!selectedConversation}
@@ -686,12 +767,36 @@ const Chat = ({ token }) => {
         </div>
       </div>
 
-      {/* New Chat Modal */}
+      {/* Modals */}
       <NewChatModal
         isOpen={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
         onCreateChat={handleNewChat}
         token={token}
+      />
+
+      <PollModal
+        isOpen={showPollModal}
+        onClose={() => setShowPollModal(false)}
+        onSubmit={handleCreatePoll}
+      />
+
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        onSubmit={handleScheduleMessage}
+      />
+
+      <CodeModal
+        isOpen={showCodeModal}
+        onClose={() => setShowCodeModal(false)}
+        onSubmit={handleSendCode}
+      />
+
+      <GroupInfoModal
+        isOpen={showGroupInfoModal}
+        onClose={() => setShowGroupInfoModal(false)}
+        conversation={selectedConversation}
       />
     </div>
   );

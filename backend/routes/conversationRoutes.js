@@ -5,6 +5,11 @@ import {
   createConversation,
   deleteConversation,
   updateGroupInfo,
+  addParticipant,
+  removeParticipant,
+  leaveGroup,
+  makeAdmin,
+  removeAdmin,
 } from '../controllers/conversationController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
@@ -15,5 +20,10 @@ router.get('/:id', protect, getConversationById);
 router.post('/create', protect, createConversation);
 router.delete('/:id', protect, deleteConversation);
 router.put('/:id/group', protect, updateGroupInfo);
+router.put('/:id/participants', protect, addParticipant);
+router.delete('/:id/participants', protect, removeParticipant);
+router.post('/:id/leave', protect, leaveGroup);
+router.put('/:id/admins', protect, makeAdmin);
+router.delete('/:id/admins', protect, removeAdmin);
 
 export default router;

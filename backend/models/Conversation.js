@@ -77,7 +77,7 @@ conversationSchema.index({ updatedAt: -1 });
 conversationSchema.index({ type: 1 });
 
 // Method to add participant
-conversationSchema.methods.addParticipant = function(userId) {
+conversationSchema.methods.addParticipant = function (userId) {
   if (!this.participants.includes(userId)) {
     this.participants.push(userId);
   }
@@ -85,7 +85,7 @@ conversationSchema.methods.addParticipant = function(userId) {
 };
 
 // Method to remove participant
-conversationSchema.methods.removeParticipant = function(userId) {
+conversationSchema.methods.removeParticipant = function (userId) {
   this.participants = this.participants.filter(
     id => id.toString() !== userId.toString()
   );
@@ -93,22 +93,38 @@ conversationSchema.methods.removeParticipant = function(userId) {
 };
 
 // Method to update unread count
-conversationSchema.methods.incrementUnread = function(userId) {
+conversationSchema.methods.incrementUnread = function (userId) {
   const current = this.unreadCount.get(userId.toString()) || 0;
   this.unreadCount.set(userId.toString(), current + 1);
   return this.save();
 };
 
 // Method to reset unread count
-conversationSchema.methods.resetUnread = function(userId) {
+conversationSchema.methods.resetUnread = function (userId) {
   this.unreadCount.set(userId.toString(), 0);
   return this.save();
 };
 
 // Method to check if user is admin
-conversationSchema.methods.isAdmin = function(userId) {
+conversationSchema.methods.isAdmin = function (userId) {
   if (this.type !== 'group') return false;
   return this.groupAdmin.some(id => id.toString() === userId.toString());
+};
+
+// Method to add admin
+conversationSchema.methods.addAdmin = function (userId) {
+  if (!this.groupAdmin.some(id => id.toString() === userId.toString())) {
+    this.groupAdmin.push(userId);
+  }
+  return this.save();
+};
+
+// Method to remove admin
+conversationSchema.methods.removeAdmin = function (userId) {
+  this.groupAdmin = this.groupAdmin.filter(
+    id => id.toString() !== userId.toString()
+  );
+  return this.save();
 };
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
