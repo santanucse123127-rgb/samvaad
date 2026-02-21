@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -11,6 +11,87 @@ const Ticks = ({ status }) => {
   if (status === 'read') return <CheckCheck size={13} style={{ color: '#34b7f1' }} />;
   if (status === 'delivered') return <CheckCheck size={13} style={{ color: 'rgba(255,255,255,0.45)' }} />;
   /* sent / default */         return <Check size={13} style={{ color: 'rgba(255,255,255,0.4)' }} />;
+};
+
+const VoicePlayer = ({ url, duration, isOwn }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef(new Audio(url));
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const updateProgress = () => {
+      setProgress((audio.currentTime / audio.duration) * 100);
+      setCurrentTime(audio.currentTime);
+    };
+
+    const onEnded = () => {
+      setIsPlaying(false);
+      setProgress(0);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('ended', onEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('ended', onEnded);
+      audio.pause();
+    };
+  }, []);
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(prev => !prev);
+  };
+
+  const fmtTime = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-1 min-w-[200px]">
+      <button
+        onClick={togglePlay}
+        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-90"
+        style={{
+          background: isOwn ? 'rgba(255,255,255,0.2)' : 'hsl(var(--sv-accent)/0.15)',
+          color: isOwn ? 'white' : 'hsl(var(--sv-accent))'
+        }}
+      >
+        {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+      </button>
+
+      <div className="flex-1">
+        <div className="relative h-1.5 w-full bg-black/10 rounded-full overflow-hidden mb-1.5">
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              width: `${progress}%`,
+              background: isOwn ? 'white' : 'hsl(var(--sv-accent))'
+            }}
+          />
+        </div>
+        <div className="flex justify-between items-center px-0.5">
+          <span className="text-[10px] tabular-nums" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'hsl(var(--sv-text-3))' }}>
+            {fmtTime(currentTime)}
+          </span>
+          <span className="text-[10px] tabular-nums" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'hsl(var(--sv-text-3))' }}>
+            {fmtTime(duration || 0)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -111,20 +192,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
       </div>
     );
     if (message.type === 'voice') return (
-      <div className="flex items-center gap-3 py-1 min-w-[180px]">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ background: 'hsl(var(--sv-accent)/0.2)', color: 'hsl(var(--sv-accent))' }}>
-          <Mic size={18} />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-end gap-0.5 h-5 mb-1">
-            {[0.3, 0.7, 0.5, 0.9, 0.4, 0.8, 0.6, 0.4, 0.7, 0.5, 0.3, 0.8].map((h, i) => (
-              <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: 'hsl(var(--sv-accent)/0.5)' }} />
-            ))}
-          </div>
-          <span className="text-xs" style={{ color: 'hsl(var(--sv-text-3))' }}>{message.duration || '0:00'}</span>
-        </div>
-      </div>
+      <VoicePlayer url={message.mediaUrl} duration={message.duration} isOwn={isOwn} />
     );
     /* text/file/default */
     return (
@@ -229,8 +297,8 @@ const MessageItem = ({ message, isOwn, onReply }) => {
 
           {/* ── THE BUBBLE ── */}
           <div className={`relative rounded-2xl px-3.5 py-2.5 shadow-md ${isOwn
-              ? 'rounded-br-sm text-white'
-              : 'rounded-bl-sm'
+            ? 'rounded-br-sm text-white'
+            : 'rounded-bl-sm'
             }`}
             style={isOwn
               ? { background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))', boxShadow: '0 4px 16px -4px hsl(var(--sv-accent)/0.35)', maxWidth: '100%' }

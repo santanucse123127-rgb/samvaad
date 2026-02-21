@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ChatProvider } from "./context/ChatContext";
 import { ClipboardProvider } from "./context/ClipboardContext";
 import Index from "./pages/Index";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 
 
 const queryClient = new QueryClient({
@@ -37,6 +38,9 @@ const Loader = () => (
 const AnimatedRoutes = () => {
   const { user, token, loading } = useAuth();
   const location = useLocation();
+
+  // Handle push notifications
+  usePushNotifications(token);
 
   if (loading) return <Loader />;
 

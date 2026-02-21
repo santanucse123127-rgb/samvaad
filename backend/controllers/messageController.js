@@ -1,6 +1,8 @@
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
+import User from "../models/User.js";
 import { uploadToCloudinary } from "../config/cloudinary.js";
+import { sendToUser } from "../utils/pushNotification.js";
 
 // @desc    Get messages for a conversation with pagination
 // @route   GET /api/messages/:conversationId
@@ -201,6 +203,29 @@ export const sendMessage = async (req, res) => {
       }
     }
 
+    // Send push notifications to other participants
+    const otherParticipants = conversation.participants.filter(
+      (id) => id.toString() !== req.user._id.toString()
+    );
+
+    if (otherParticipants.length > 0) {
+      const usersToNotify = await User.find({ _id: { $in: otherParticipants } });
+      const payload = {
+        title: populatedMessage.sender.name,
+        body: type === 'text' ? content : `Sent a ${type}`,
+        icon: populatedMessage.sender.avatar || '/logo192.png',
+        data: {
+          conversationId: conversation._id,
+          messageId: populatedMessage._id,
+          type: 'message'
+        }
+      };
+
+      usersToNotify.forEach(user => {
+        sendToUser(user, payload);
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: populatedMessage,
@@ -298,6 +323,29 @@ export const uploadMedia = async (req, res) => {
         "message-received",
         populatedMessage
       );
+    }
+
+    // Send push notifications to other participants
+    const otherParticipants = conversation.participants.filter(
+      (id) => id.toString() !== req.user._id.toString()
+    );
+
+    if (otherParticipants.length > 0) {
+      const usersToNotify = await User.find({ _id: { $in: otherParticipants } });
+      const payload = {
+        title: populatedMessage.sender.name,
+        body: `Sent a ${type || 'file'}`,
+        icon: populatedMessage.sender.avatar || '/logo192.png',
+        data: {
+          conversationId: conversation._id,
+          messageId: populatedMessage._id,
+          type: 'message'
+        }
+      };
+
+      usersToNotify.forEach(user => {
+        sendToUser(user, payload);
+      });
     }
 
     res.status(201).json({

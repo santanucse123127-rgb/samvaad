@@ -8,6 +8,8 @@ import {
   getUserById,
   getUsers,
   syncContacts,
+  subscribePush,
+  unsubscribePush,
 } from '../controllers/userController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { upload, handleMulterError } from '../middlewares/uploadMiddleware.js';
@@ -21,5 +23,7 @@ router.post('/upload-avatar', protect, upload.single('avatar'), handleMulterErro
 router.get('/search', protect, searchUsers);
 router.get('/:id', protect, getUserById);
 router.post('/sync-contacts', protect, syncContacts);
+router.post('/subscribe-push', protect, subscribePush);
+router.post('/unsubscribe-push', protect, unsubscribePush);
 
 export default router;

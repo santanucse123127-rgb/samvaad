@@ -312,6 +312,30 @@ const api = {
       body: JSON.stringify({ optionIndex })
     });
     return response.json();
+  },
+
+  async subscribePush(subscription, token) {
+    const response = await fetch(`${API_URL}/users/subscribe-push`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(subscription)
+    });
+    return response.json();
+  },
+
+  async unsubscribePush(endpoint, token) {
+    const response = await fetch(`${API_URL}/users/unsubscribe-push`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ endpoint })
+    });
+    return response.json();
   }
 };
 
@@ -345,5 +369,7 @@ export const votePoll = api.votePoll;
 export const updateGroupInfo = api.updateGroupInfo;
 export const sendGroupInvite = api.sendGroupInvite;
 export const respondGroupInvite = api.respondGroupInvite;
+export const subscribePush = api.subscribePush;
+export const unsubscribePush = api.unsubscribePush;
 
 export default api;

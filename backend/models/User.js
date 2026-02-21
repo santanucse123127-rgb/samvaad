@@ -99,6 +99,14 @@ const userSchema = new mongoose.Schema({
     email: String,
     tel: String,
   }],
+  pushSubscriptions: [{
+    endpoint: String,
+    expirationTime: Number,
+    keys: {
+      p256dh: String,
+      auth: String,
+    },
+  }],
 }, {
   timestamps: true,
 });

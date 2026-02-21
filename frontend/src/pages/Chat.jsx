@@ -4,6 +4,7 @@ import {
   Send, Smile, Phone, Video, MoreVertical, Search, X, Plus,
   Trash2, LogOut, Settings, Image as ImageIcon, Users,
   ChevronDown, File, MessageSquare, Check, Clipboard, Lock,
+  Mic, StopCircle, Play, Pause,
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
@@ -109,12 +110,17 @@ const Chat = ({ token }) => {
   const [chatBg, setChatBg] = useState(() => localStorage.getItem("samvaad-chatbg") || "default");
   const [, setTick] = useState(0);
   const [showClipboard, setShowClipboard] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const messageContainerRef = useRef(null);
   const moreMenuRef = useRef(null);
   const sidebarMenuRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingIntervalRef = useRef(null);
 
   // Force relative-time re-render every minute
   useEffect(() => {
@@ -215,6 +221,69 @@ const Chat = ({ token }) => {
 
   const handleSendCode = async (codeData) => {
     await sendMessage(codeData.code, "code", null, { codeLanguage: codeData.language });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], "voice_message.webm", { type: 'audio/webm' });
+
+        // Duration in seconds
+        const duration = Math.floor(recordingDuration);
+
+        await sendMediaMessage(audioFile, "voice", { duration });
+
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      // Notify others via socket
+      socketService.emit("user-recording-voice", {
+        conversationId: selectedConversation._id,
+        userId: userId
+      });
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      alert("Could not access microphone");
+    }
+  };
+
+  const stopRecording = (shouldSend = true) => {
+    if (mediaRecorderRef.current && isRecording) {
+      if (!shouldSend) {
+        // Clear chunks if we want to cancel
+        audioChunksRef.current = [];
+      }
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingIntervalRef.current);
+
+      socketService.emit("user-stopped-recording-voice", {
+        conversationId: selectedConversation._id
+      });
+    }
+  };
+
+  const fmtDuration = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleLogout = () => {
@@ -684,74 +753,112 @@ const Chat = ({ token }) => {
                 <footer className="flex items-center gap-2 px-3 md:px-4 py-3 border-t flex-shrink-0 sv-mobile-safe"
                   style={{ background: 'hsl(var(--sv-surface))', borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
 
-                  {/* Emoji */}
-                  <div className="relative flex-shrink-0">
-                    <button id="emoji-btn" onClick={() => setShowEmojiPicker(p => !p)}
-                      className={`sv-icon-btn w-9 h-9 rounded-xl`}
-                      style={showEmojiPicker ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
-                      <Smile size={18} />
-                    </button>
-                    {showEmojiPicker && (
-                      <div className="absolute bottom-full mb-2 left-0 z-50">
-                        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-                        <div className="fixed inset-0 -z-10" onClick={() => setShowEmojiPicker(false)} />
+                  {isRecording ? (
+                    <div className="flex-1 flex items-center gap-4 bg-sv-accent/10 px-4 py-2 rounded-2xl border border-sv-accent/20">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-sm font-medium tabular-nums" style={{ color: 'hsl(var(--sv-text))' }}>
+                          Recording... {fmtDuration(recordingDuration)}
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => stopRecording(false)}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+                          style={{ color: 'hsl(var(--sv-danger))' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => stopRecording(true)}
+                          className="sv-btn-primary w-10 h-10 p-0 rounded-xl"
+                        >
+                          <Send size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Emoji */}
+                      <div className="relative flex-shrink-0">
+                        <button id="emoji-btn" onClick={() => setShowEmojiPicker(p => !p)}
+                          className={`sv-icon-btn w-9 h-9 rounded-xl`}
+                          style={showEmojiPicker ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
+                          <Smile size={18} />
+                        </button>
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-full mb-2 left-0 z-50">
+                            <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                            <div className="fixed inset-0 -z-10" onClick={() => setShowEmojiPicker(false)} />
+                          </div>
+                        )}
+                      </div>
 
-                  {/* Attach */}
-                  <div className="relative flex-shrink-0">
-                    <button id="attach-btn" onClick={() => setShowAttachMenu(p => !p)}
-                      className="sv-icon-btn w-9 h-9 rounded-xl"
-                      style={showAttachMenu ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
-                      <Plus size={18} />
-                    </button>
-                    <AnimatePresence>
-                      {showAttachMenu && (
-                        <motion.div
-                          className="sv-dropdown bottom-full mb-2 left-0"
-                          initial={{ opacity: 0, scale: 0.9, y: 8 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.9, y: 8 }}
-                          transition={{ duration: 0.15 }}>
-                          <button className="sv-dropdown-item" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}>
-                            <ImageIcon size={15} style={{ color: '#3b82f6' }} /> Media &amp; Files
-                          </button>
-                          <button className="sv-dropdown-item" onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}>
-                            <Users size={15} style={{ color: '#f59e0b' }} /> Create Poll
-                          </button>
-                          <button className="sv-dropdown-item" onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}>
-                            <MessageSquare size={15} style={{ color: '#a78bfa' }} /> Code Block
-                          </button>
-                          <button className="sv-dropdown-item" onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}>
-                            <Settings size={15} style={{ color: '#6ee7b7' }} /> Schedule Message
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                      {/* Attach */}
+                      <div className="relative flex-shrink-0">
+                        <button id="attach-btn" onClick={() => setShowAttachMenu(p => !p)}
+                          className="sv-icon-btn w-9 h-9 rounded-xl"
+                          style={showAttachMenu ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
+                          <Plus size={18} />
+                        </button>
+                        <AnimatePresence>
+                          {showAttachMenu && (
+                            <motion.div
+                              className="sv-dropdown bottom-full mb-2 left-0"
+                              initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9, y: 8 }}
+                              transition={{ duration: 0.15 }}>
+                              <button className="sv-dropdown-item" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}>
+                                <ImageIcon size={15} style={{ color: '#3b82f6' }} /> Media &amp; Files
+                              </button>
+                              <button className="sv-dropdown-item" onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}>
+                                <Users size={15} style={{ color: '#f59e0b' }} /> Create Poll
+                              </button>
+                              <button className="sv-dropdown-item" onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}>
+                                <MessageSquare size={15} style={{ color: '#a78bfa' }} /> Code Block
+                              </button>
+                              <button className="sv-dropdown-item" onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}>
+                                <Settings size={15} style={{ color: '#6ee7b7' }} /> Schedule Message
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
 
-                  {/* Text input */}
-                  <form onSubmit={handleSend} className="flex-1 flex items-center gap-2 min-w-0">
-                    <input
-                      id="message-input"
-                      type="text"
-                      value={newMessage}
-                      onChange={handleInputChange}
-                      placeholder={`Message ${getConversationName(selectedConversation)}…`}
-                      className="sv-input flex-1 py-2.5 text-sm min-w-0"
-                      autoComplete="off"
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
-                    />
-                    <button
-                      id="send-btn"
-                      type="submit"
-                      disabled={!newMessage.trim() && !uploadPreview}
-                      className="sv-btn-primary w-10 h-10 p-0 rounded-xl flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                      style={{ minWidth: '40px' }}>
-                      <Send size={16} />
-                    </button>
-                  </form>
+                      {/* Text input */}
+                      <form onSubmit={handleSend} className="flex-1 flex items-center gap-2 min-w-0">
+                        <input
+                          id="message-input"
+                          type="text"
+                          value={newMessage}
+                          onChange={handleInputChange}
+                          placeholder={`Message ${getConversationName(selectedConversation)}…`}
+                          className="sv-input flex-1 py-2.5 text-sm min-w-0"
+                          autoComplete="off"
+                          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
+                        />
+                        {newMessage.trim() || uploadPreview ? (
+                          <button
+                            id="send-btn"
+                            type="submit"
+                            className="sv-btn-primary w-10 h-10 p-0 rounded-xl flex-shrink-0"
+                            style={{ minWidth: '40px' }}>
+                            <Send size={16} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={startRecording}
+                            className="sv-icon-btn w-10 h-10 rounded-xl flex-shrink-0"
+                            style={{ background: 'hsl(var(--sv-accent)/0.1)', color: 'hsl(var(--sv-accent))' }}
+                          >
+                            <Mic size={18} />
+                          </button>
+                        )}
+                      </form>
+                    </>
+                  )}
 
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                 </footer>

@@ -300,3 +300,57 @@ export const syncContacts = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Subscribe to push notifications
+// @route   POST /api/users/subscribe-push
+// @access  Private
+export const subscribePush = async (req, res) => {
+  try {
+    const subscription = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check if subscription already exists
+    const exists = user.pushSubscriptions.some(
+      (sub) => sub.endpoint === subscription.endpoint
+    );
+
+    if (!exists) {
+      user.pushSubscriptions.push(subscription);
+      await user.save();
+    }
+
+    res.status(201).json({ success: true, message: 'Subscribed to push notifications' });
+  } catch (error) {
+    console.error('Push subscribe error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Unsubscribe from push notifications
+// @route   POST /api/users/unsubscribe-push
+// @access  Private
+export const unsubscribePush = async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.pushSubscriptions = user.pushSubscriptions.filter(
+      (sub) => sub.endpoint !== endpoint
+    );
+
+    await user.save();
+
+    res.json({ success: true, message: 'Unsubscribed from push notifications' });
+  } catch (error) {
+    console.error('Push unsubscribe error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -1,628 +1,629 @@
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useRef, useState, useEffect } from "react";
-import { ArrowRight, Zap, Shield, Users, Sparkles, MessageCircle, Lock, Globe, ChevronDown } from "lucide-react";
+import { ArrowRight, Zap, Shield, Users, Sparkles, MessageCircle, Lock, Globe, ChevronDown, Check } from "lucide-react";
 
-/* ─────────────────────────────────────────
-   FLOATING PARTICLE SYSTEM
-───────────────────────────────────────── */
-const Particle = ({ x, y, size, duration, delay }) => (
-  <motion.div
-    className="absolute rounded-full pointer-events-none"
-    style={{
-      left: `${x}%`,
-      top: `${y}%`,
-      width: size,
-      height: size,
-      background: `radial-gradient(circle, rgba(0,230,118,0.6), transparent)`,
-    }}
-    animate={{
-      y: [0, -40, 0],
-      opacity: [0, 0.8, 0],
-      scale: [0.5, 1.2, 0.5],
-    }}
-    transition={{
-      duration,
-      delay,
-      repeat: Infinity,
-      ease: "easeInOut",
-    }}
-  />
+/* ─────────────────────────────────────────────────────────
+   GLOBAL STYLES (injected once)
+───────────────────────────────────────────────────────── */
+const GlobalStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #060a0d;
+      font-family: 'DM Sans', sans-serif;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,230,118,0.25); border-radius: 2px; }
+
+    .syne { font-family: 'Syne', sans-serif !important; }
+
+    #noise-layer {
+      position: fixed; inset: 0; z-index: 9998;
+      pointer-events: none; opacity: 0.022;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+    }
+
+    .dot-grid {
+      background-image: radial-gradient(rgba(0,230,118,0.055) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    @keyframes glow-float {
+      0%, 100% { opacity: 0.35; transform: scale(1) translateY(0px); }
+      50%       { opacity: 0.6;  transform: scale(1.08) translateY(-20px); }
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    .marquee-inner { animation: marquee 22s linear infinite; display: flex; width: max-content; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+      color: #061209; font-weight: 700; font-size: 15px;
+      padding: 13px 26px; border-radius: 100px; border: none;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      letter-spacing: -0.01em; text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 28px rgba(0,230,118,0.35);
+    }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.65);
+      font-size: 15px; font-weight: 500;
+      padding: 13px 24px; border-radius: 100px;
+      border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s ease; text-decoration: none; white-space: nowrap;
+    }
+    .btn-ghost:hover {
+      border-color: rgba(0,230,118,0.35);
+      color: #00e676; background: rgba(0,230,118,0.06);
+    }
+
+    .nav-link {
+      color: rgba(255,255,255,0.45); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      transition: color 0.2s; white-space: nowrap;
+    }
+    .nav-link:hover { color: #fff; }
+
+    .feat-card {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 24px; padding: 32px 28px;
+      position: relative; overflow: hidden; cursor: default;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+    }
+    .feat-card:hover {
+      border-color: rgba(0,230,118,0.3); transform: translateY(-8px);
+      box-shadow: 0 32px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,230,118,0.08);
+    }
+    .feat-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% -20%, rgba(0,230,118,0.07), transparent 70%);
+      opacity: 0; transition: opacity 0.4s;
+    }
+    .feat-card:hover::before { opacity: 1; }
+
+    .price-card {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px; padding: 40px 32px;
+      position: relative; overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .price-card.featured {
+      background: linear-gradient(135deg, rgba(0,230,118,0.12), rgba(0,200,100,0.06));
+      border-color: rgba(0,230,118,0.35);
+      box-shadow: 0 0 60px rgba(0,230,118,0.1);
+    }
+    .price-card:hover { transform: translateY(-6px); box-shadow: 0 40px 80px rgba(0,0,0,0.4); }
+
+    .testi-card {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px; padding: 28px;
+    }
+
+    .footer-link {
+      font-size: 13.5px; color: rgba(255,255,255,0.3);
+      text-decoration: none; transition: color 0.2s;
+    }
+    .footer-link:hover { color: #00e676; }
+  `}</style>
 );
 
+/* ─────────────────────────────────────────────────────────
+   FLOATING PARTICLES
+───────────────────────────────────────────────────────── */
 const ParticleField = () => {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 4 + 3,
-    delay: Math.random() * 5,
-  }));
+  const [particles] = useState(() =>
+    Array.from({ length: 18 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 3 + 1.5,
+      dur: Math.random() * 5 + 4,
+      delay: Math.random() * 6,
+    }))
+  );
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((p) => <Particle key={p.id} {...p} />)}
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          style={{
+            position: "absolute",
+            left: `${p.x}%`, top: `${p.y}%`,
+            width: p.size, height: p.size, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(0,230,118,0.7), transparent)",
+          }}
+          animate={{ y: [0, -50, 0], opacity: [0, 0.7, 0], scale: [0.5, 1.3, 0.5] }}
+          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ))}
     </div>
   );
 };
 
-/* ─────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────
    LIVE CHAT MOCKUP
-───────────────────────────────────────── */
-const messages = [
-  { id: 1, from: "Aisha", text: "Just sent you the project files 📁", time: "9:41 AM", avatar: "A", right: false },
-  { id: 2, from: "You", text: "Got it! Starting review now", time: "9:42 AM", avatar: "Y", right: true },
-  { id: 3, from: "Aisha", text: "Let me know if anything needs changes ✨", time: "9:42 AM", avatar: "A", right: false },
-  { id: 4, from: "You", text: "Looks perfect! Launching tonight 🚀", time: "9:45 AM", avatar: "Y", right: true },
+───────────────────────────────────────────────────────── */
+const MESSAGES = [
+  { id: 1, text: "Hey! Just dropped the new designs in the folder 📁", right: false, avatar: "A", time: "9:41 AM" },
+  { id: 2, text: "Perfect timing! Reviewing now ✨", right: true, avatar: "Y", time: "9:42 AM" },
+  { id: 3, text: "The animations look incredible btw 🔥", right: false, avatar: "A", time: "9:43 AM" },
+  { id: 4, text: "Agreed — shipping tonight! 🚀", right: true, avatar: "Y", time: "9:45 AM" },
 ];
 
 const ChatMockup = () => {
   const [visible, setVisible] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setVisible((v) => (v < messages.length ? v + 1 : v)), 900);
+    setVisible(0);
+    const t = setInterval(() => {
+      setVisible((v) => { if (v >= MESSAGES.length) { clearInterval(t); return v; } return v + 1; });
+    }, 900);
     return () => clearInterval(t);
   }, []);
 
   return (
-    <div
-      style={{
-        background: "rgba(10,14,20,0.9)",
-        border: "1px solid rgba(0,230,118,0.15)",
-        borderRadius: 28,
-        padding: "24px",
-        backdropFilter: "blur(20px)",
-        boxShadow: "0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
-        width: "100%",
-        maxWidth: 420,
-      }}
-    >
+    <div style={{
+      background: "rgba(8,12,16,0.92)", border: "1px solid rgba(0,230,118,0.12)",
+      borderRadius: 28, padding: 24, backdropFilter: "blur(24px)",
+      boxShadow: "0 40px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
+      width: "100%", maxWidth: 400,
+    }}>
+      {/* Window chrome */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+        {["#ff5f56", "#ffbd2e", "#27c93f"].map((c) => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
+      </div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg, #00e676, #00bcd4)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#000", fontSize: 16 }}>A</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 16, marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00bcd4)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#050e07", fontSize: 15, flexShrink: 0 }}>A</div>
         <div>
-          <div style={{ fontWeight: 700, color: "#fff", fontSize: 15 }}>Aisha Rahman</div>
-          <div style={{ fontSize: 12, color: "#00e676", display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00e676", display: "inline-block" }} />
-            Online
+          <div style={{ fontWeight: 700, color: "#fff", fontSize: 14 }}>Aisha Rahman</div>
+          <div style={{ fontSize: 11, color: "#00e676", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#00e676", display: "inline-block" }} /> Online now
           </div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff5f56" }} />
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ffbd2e" }} />
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#27c93f" }} />
-        </div>
+        <div style={{ marginLeft: "auto", fontSize: 10.5, color: "#00e676", background: "rgba(0,230,118,0.08)", border: "1px solid rgba(0,230,118,0.15)", padding: "3px 10px", borderRadius: 100 }}>🔒 Encrypted</div>
       </div>
-
       {/* Messages */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 180 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 190 }}>
         <AnimatePresence>
-          {messages.slice(0, visible).map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10, scale: 0.96 }}
+          {MESSAGES.slice(0, visible).map((msg) => (
+            <motion.div key={msg.id}
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               style={{ display: "flex", justifyContent: msg.right ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}
             >
               {!msg.right && (
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00bcd4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#000", flexShrink: 0 }}>{msg.avatar}</div>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00bcd4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#050e07", flexShrink: 0 }}>{msg.avatar}</div>
               )}
               <div style={{
-                background: msg.right ? "linear-gradient(135deg, #00e676, #00c853)" : "rgba(255,255,255,0.07)",
-                color: msg.right ? "#000" : "#e8eaed",
-                borderRadius: msg.right ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                padding: "10px 14px",
-                maxWidth: "72%",
-                fontSize: 13.5,
-                fontWeight: msg.right ? 600 : 400,
-                boxShadow: msg.right ? "0 4px 20px rgba(0,230,118,0.3)" : "none",
+                background: msg.right ? "linear-gradient(135deg,#00e676,#00c853)" : "rgba(255,255,255,0.07)",
+                color: msg.right ? "#050e07" : "#e2e8f0",
+                borderRadius: msg.right ? "18px 18px 4px 18px" : "4px 18px 18px 18px",
+                padding: "10px 14px", maxWidth: "76%", fontSize: 13,
+                fontWeight: msg.right ? 600 : 400, lineHeight: 1.45,
+                boxShadow: msg.right ? "0 4px 20px rgba(0,230,118,0.25)" : "none",
               }}>
                 {msg.text}
-                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: "right" }}>{msg.time}</div>
+                <div style={{ fontSize: 9.5, opacity: 0.55, marginTop: 3, textAlign: "right" }}>{msg.time}</div>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
-
       {/* Input */}
-      <div style={{ marginTop: 16, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 13 }}>Type a message…</span>
-        <div style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <ArrowRight size={14} color="#000" />
+      <div style={{ marginTop: 16, background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "11px 16px", display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
+        <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 13, flex: 1 }}>Type a message…</span>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <ArrowRight size={13} color="#050e07" />
         </div>
       </div>
     </div>
   );
 };
 
-/* ─────────────────────────────────────────
-   FEATURE CARD
-───────────────────────────────────────── */
-const FeatureCard = ({ icon: Icon, title, desc, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 40 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ duration: 0.6, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
-    whileHover={{ y: -8, transition: { duration: 0.3 } }}
-    style={{
-      background: "rgba(255,255,255,0.03)",
-      border: "1px solid rgba(255,255,255,0.07)",
-      borderRadius: 24,
-      padding: "36px 28px",
-      position: "relative",
-      overflow: "hidden",
-      cursor: "default",
-    }}
-  >
-    <motion.div
-      className="absolute inset-0 opacity-0"
-      whileHover={{ opacity: 1 }}
-      style={{ background: "radial-gradient(circle at 50% 0%, rgba(0,230,118,0.08), transparent 70%)" }}
-    />
-    <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-      <Icon size={22} color="#00e676" />
-    </div>
-    <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 10, letterSpacing: "-0.02em" }}>{title}</h3>
-    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>{desc}</p>
-  </motion.div>
-);
+/* ─────────────────────────────────────────────────────────
+   DATA
+───────────────────────────────────────────────────────── */
+const features = [
+  { icon: Zap, title: "Sub-Millisecond Delivery", desc: "Edge infrastructure in 180+ regions ensures your messages arrive before you blink. Zero buffering." },
+  { icon: Lock, title: "Zero-Knowledge Encryption", desc: "AES-256 with perfect forward secrecy. We mathematically cannot read your messages — ever." },
+  { icon: Globe, title: "Borderless by Default", desc: "Real-time translation across 90+ languages. Your conversations break every barrier." },
+  { icon: Sparkles, title: "Context-Aware AI", desc: "Smart replies, intelligent search, and sentiment-aware summaries that feel like a superpower." },
+];
 
-/* ─────────────────────────────────────────
-   STAT COUNTER
-───────────────────────────────────────── */
-const StatItem = ({ value, label, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay: index * 0.1 + 0.2 }}
-    style={{ textAlign: "center" }}
-  >
-    <div style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, color: "#00e676", letterSpacing: "-0.03em", fontFamily: "'Syne', sans-serif" }}>{value}</div>
-    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 600, marginTop: 4 }}>{label}</div>
-  </motion.div>
-);
+const pricingPlans = [
+  { name: "Free", price: "₹0", period: "forever", desc: "Everything you need to get started.", featured: false, cta: "Start Free", features: ["Unlimited messages", "Up to 10 group chats", "Standard encryption", "7-day message history"] },
+  { name: "Pro", price: "₹199", period: "per month", desc: "For power users who need more.", featured: true, cta: "Get Pro", features: ["Everything in Free", "Unlimited groups", "Advanced encryption", "Unlimited history", "Priority support", "AI smart replies"] },
+  { name: "Team", price: "₹499", period: "per month", desc: "Built for organizations.", featured: false, cta: "Contact Sales", features: ["Everything in Pro", "Admin dashboard", "Custom branding", "API access", "SSO / SAML", "Dedicated support"] },
+];
 
-/* ─────────────────────────────────────────
-   MAIN INDEX COMPONENT
-───────────────────────────────────────── */
-const Index = () => {
+const testimonials = [
+  { name: "Priya S.", role: "Product Designer", text: "Samvaad replaced Slack for our whole team. The UI is stunning and it's just… faster." },
+  { name: "Rahul M.", role: "Startup Founder", text: "End-to-end encryption + AI summaries? This is exactly what I needed for client calls." },
+  { name: "Divya K.", role: "Freelancer", text: "I love how the messages animate in. It genuinely doesn't feel like any other chat app." },
+];
+
+/* ─────────────────────────────────────────────────────────
+   MAIN
+───────────────────────────────────────────────────────── */
+export default function Index() {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
-  const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.25], [1, 0]);
-
-  const features = [
-    { icon: Zap, title: "Instant Delivery", desc: "Messages arrive before you blink. Sub-millisecond latency powered by edge infrastructure across 180+ regions." },
-    { icon: Lock, title: "Zero-Knowledge Encryption", desc: "We can't read your messages—even if we wanted to. True end-to-end encryption with forward secrecy." },
-    { icon: Globe, title: "Borderless Messaging", desc: "Auto-translate across 90+ languages in real-time. The world speaks Samvaad." },
-    { icon: Sparkles, title: "Intelligent Context", desc: "AI that understands your conversations and offers smart replies, summaries, and emotion-aware suggestions." },
-  ];
+  const heroY = useTransform(scrollYProgress, [0, 0.25], [0, -60]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.22], [1, 0]);
 
   return (
     <>
-      {/* Google Fonts */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+      <GlobalStyles />
+      <div id="noise-layer" aria-hidden="true" />
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      <div ref={containerRef} style={{ minHeight: "100vh", background: "#060a0d", position: "relative" }}>
 
-        :root {
-          --green: #00e676;
-          --green-dark: #00c853;
-          --bg: #070c10;
-          --bg2: #0b1015;
-          --surface: rgba(255,255,255,0.03);
-          --border: rgba(255,255,255,0.07);
-          --text: #e8eaed;
-          --muted: rgba(255,255,255,0.4);
-        }
-
-        body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); overflow-x: hidden; }
-
-        .syne { font-family: 'Syne', sans-serif; }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,230,118,0.3); border-radius: 2px; }
-
-        /* Noise overlay */
-        .noise::after {
-          content: '';
-          position: fixed;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-          opacity: 0.025;
-          pointer-events: none;
-          z-index: 9999;
-        }
-
-        /* Grid lines */
-        .grid-bg {
-          background-image:
-            linear-gradient(rgba(0,230,118,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,230,118,0.03) 1px, transparent 1px);
-          background-size: 60px 60px;
-        }
-
-        .btn-primary {
-          background: linear-gradient(135deg, #00e676, #00c853);
-          color: #000;
-          font-weight: 700;
-          font-size: 15px;
-          padding: 14px 28px;
-          border-radius: 100px;
-          border: none;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          font-family: 'DM Sans', sans-serif;
-          letter-spacing: -0.01em;
-          transition: transform 0.2s, box-shadow 0.2s;
-          box-shadow: 0 0 0 0 rgba(0,230,118,0);
-          text-decoration: none;
-        }
-        .btn-primary:hover {
-          transform: translateY(-2px) scale(1.03);
-          box-shadow: 0 8px 32px rgba(0,230,118,0.35);
-        }
-        .btn-ghost {
-          background: transparent;
-          color: rgba(255,255,255,0.6);
-          font-size: 15px;
-          font-weight: 500;
-          padding: 14px 24px;
-          border-radius: 100px;
-          border: 1px solid rgba(255,255,255,0.1);
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-          text-decoration: none;
-        }
-        .btn-ghost:hover {
-          border-color: rgba(0,230,118,0.4);
-          color: #00e676;
-          background: rgba(0,230,118,0.05);
-        }
-
-        .nav-link {
-          color: rgba(255,255,255,0.5);
-          text-decoration: none;
-          font-size: 14px;
-          font-weight: 500;
-          transition: color 0.2s;
-        }
-        .nav-link:hover { color: #fff; }
-
-        @keyframes glow-pulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.05); }
-        }
-      `}</style>
-
-      <div className="noise" ref={containerRef} style={{ minHeight: "100vh", background: "var(--bg)" }}>
-
-        {/* ── NAVBAR ── */}
-        <motion.nav
-          initial={{ y: -20, opacity: 0 }}
+        {/* ══ NAVBAR ══ */}
+        <motion.header
+          initial={{ y: -24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           style={{
-            position: "fixed",
-            top: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "calc(100% - 48px)",
-            maxWidth: 1100,
-            zIndex: 100,
-            background: "rgba(7,12,16,0.7)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: 100,
-            padding: "14px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 32,
+            position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)",
+            width: "min(calc(100% - 32px), 1100px)", zIndex: 500,
+            background: "rgba(6,10,13,0.75)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.08)", borderRadius: 100,
+            padding: "10px 16px 10px 20px",
+            display: "flex", alignItems: "center", gap: 24,
           }}
         >
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", flexShrink: 0 }}>
             <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageCircle size={16} color="#000" fill="#000" />
+              <MessageCircle size={16} color="#050e07" fill="#050e07" />
             </div>
-            <span className="syne" style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.03em", color: "#fff" }}>samvaad</span>
-          </div>
+            <span className="syne" style={{ fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "#fff" }}>samvaad</span>
+          </Link>
 
-          {/* Links */}
-          <div style={{ display: "flex", gap: 28, marginLeft: 16 }}>
+          <nav style={{ display: "flex", gap: 28, marginLeft: 8, flex: 1 }}>
             {["Features", "Security", "Pricing"].map((l) => (
-              <a key={l} href="#" className="nav-link">{l}</a>
+              <a key={l} href={`#${l.toLowerCase()}`} className="nav-link">{l}</a>
             ))}
-          </div>
+          </nav>
 
-          {/* Actions */}
-          <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-            <Link to="/login" className="btn-ghost" style={{ padding: "8px 18px", fontSize: 13 }}>Sign In</Link>
-            <Link to="/register" className="btn-primary" style={{ padding: "8px 18px", fontSize: 13 }}>Get Started</Link>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+            <Link to="/login" className="btn-ghost" style={{ padding: "9px 18px", fontSize: 13.5 }}>Sign In</Link>
+            <Link to="/register" className="btn-primary" style={{ padding: "9px 18px", fontSize: 13.5 }}>Get Started</Link>
           </div>
-        </motion.nav>
+        </motion.header>
 
-        {/* ── HERO ── */}
-        <section
-          className="grid-bg"
-          style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", paddingTop: 100 }}
-        >
+        {/* ══ HERO ══ */}
+        <section className="dot-grid" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", paddingTop: 80 }}>
           <ParticleField />
 
           {/* Glow blobs */}
-          <div style={{ position: "absolute", top: "20%", left: "15%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,230,118,0.08), transparent 70%)", animation: "glow-pulse 6s ease-in-out infinite", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: "10%", right: "10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,188,212,0.06), transparent 70%)", animation: "glow-pulse 8s ease-in-out infinite 2s", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: "15%", left: "8%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(0,230,118,0.07),transparent 65%)", animation: "glow-float 7s ease-in-out infinite", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: "5%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(0,188,212,0.05),transparent 65%)", animation: "glow-float 9s ease-in-out infinite 3s", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: "50%", left: "50%", width: 800, height: 600, transform: "translate(-50%,-50%)", background: "radial-gradient(ellipse,rgba(0,230,118,0.04),transparent 60%)", pointerEvents: "none" }} />
 
-          <motion.div style={{ y: heroY, opacity: heroOpacity, textAlign: "center", maxWidth: 900, padding: "0 24px", position: "relative", zIndex: 2 }}>
+          <motion.div style={{ y: heroY, opacity: heroOpacity, textAlign: "center", maxWidth: 920, padding: "0 20px", position: "relative", zIndex: 2, width: "100%" }}>
 
             {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, border: "1px solid rgba(0,230,118,0.25)", background: "rgba(0,230,118,0.06)", marginBottom: 32 }}
+              initial={{ opacity: 0, scale: 0.85, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px 6px 10px", borderRadius: 100, border: "1px solid rgba(0,230,118,0.25)", background: "rgba(0,230,118,0.07)", marginBottom: 36 }}
             >
-              <motion.span animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 2 }} style={{ width: 6, height: 6, borderRadius: "50%", background: "#00e676", display: "block" }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#00e676", letterSpacing: "0.08em", textTransform: "uppercase" }}>Samvaad 2.0 is Live</span>
+              <motion.span animate={{ scale: [1, 1.5, 1], opacity: [1, 0.7, 1] }} transition={{ repeat: Infinity, duration: 2.5 }} style={{ width: 7, height: 7, borderRadius: "50%", background: "#00e676", display: "block", boxShadow: "0 0 8px rgba(0,230,118,0.8)" }} />
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#00e676", letterSpacing: "0.1em", textTransform: "uppercase" }}>Samvaad 2.0 is Live</span>
             </motion.div>
 
             {/* Headline */}
             <motion.h1
               className="syne"
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 32 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              style={{ fontSize: "clamp(52px, 9vw, 110px)", fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 0.92, marginBottom: 28, color: "#fff" }}
+              transition={{ delay: 0.3, duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+              style={{ fontSize: "clamp(58px,10vw,118px)", fontWeight: 800, letterSpacing: "-0.045em", lineHeight: 0.9, marginBottom: 28, color: "#fff" }}
             >
               Talk.<br />
-              <span style={{ color: "#00e676", position: "relative" }}>
+              <span style={{ color: "#00e676", position: "relative", display: "inline-block" }}>
                 Connect.
                 <motion.span
-                  style={{ position: "absolute", bottom: 4, left: 0, height: 3, background: "linear-gradient(90deg,#00e676,transparent)", borderRadius: 2 }}
+                  style={{ position: "absolute", bottom: 2, left: 0, height: 3, background: "linear-gradient(90deg,#00e676,rgba(0,230,118,0))", borderRadius: 2, display: "block" }}
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
-                  transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
+                  transition={{ delay: 1.1, duration: 0.9, ease: "easeOut" }}
                 />
               </span>
-              {" "}Matter.
+              <br />Matter.
             </motion.h1>
 
             {/* Sub */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.6 }}
-              style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "rgba(255,255,255,0.45)", maxWidth: 560, margin: "0 auto 48px", lineHeight: 1.65, fontWeight: 300 }}
+              style={{ fontSize: "clamp(15px,2vw,19px)", color: "rgba(255,255,255,0.42)", maxWidth: 520, margin: "0 auto 44px", lineHeight: 1.7, fontWeight: 300 }}
             >
-              Samvaad is the messaging platform built for real conversations — encrypted, fast, and beautifully designed.
+              The messaging platform built for real conversations — encrypted by default, blindingly fast, and beautifully crafted.
             </motion.p>
 
             {/* CTAs */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.78 }}
               style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}
             >
               <Link to="/register" className="btn-primary" style={{ fontSize: 16, padding: "16px 32px" }}>
-                Start for Free <ArrowRight size={18} />
+                Start Chatting Free <ArrowRight size={17} />
               </Link>
-              <Link to="/login" className="btn-ghost" style={{ fontSize: 16, padding: "16px 32px" }}>
-                Sign In
-              </Link>
+              <Link to="/login" className="btn-ghost" style={{ fontSize: 16, padding: "16px 32px" }}>Sign In</Link>
             </motion.div>
 
-            {/* Stats row */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.1 }}
-              style={{ display: "flex", justifyContent: "center", gap: "clamp(32px, 6vw, 80px)", marginTop: 72, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            {/* Trust note */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
+              style={{ marginTop: 18, fontSize: 12, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 14, flexWrap: "wrap" }}
             >
-              {[
-                { value: "2M+", label: "Messages Daily" },
-                { value: "99.99%", label: "Uptime" },
-                { value: "E2E", label: "Encrypted" },
-                { value: "<1ms", label: "Latency" },
-              ].map((s, i) => <StatItem key={s.label} {...s} index={i} />)}
+              {["No credit card needed", "Free forever plan", "Cancel anytime"].map((t, i) => (
+                <span key={t} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {i > 0 && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "inline-block" }} />}
+                  {t}
+                </span>
+              ))}
+            </motion.div>
+
+            {/* Stats */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2 }}
+              style={{ display: "flex", justifyContent: "center", gap: "clamp(28px,6vw,72px)", marginTop: 64, paddingTop: 36, borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              {[{ value: "2M+", label: "Messages Daily" }, { value: "99.99%", label: "Uptime SLA" }, { value: "E2E", label: "Encrypted" }, { value: "<1ms", label: "Latency" }].map((s, i) => (
+                <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 + i * 0.1 }} style={{ textAlign: "center" }}>
+                  <div className="syne" style={{ fontSize: "clamp(22px,3.5vw,40px)", fontWeight: 800, color: "#00e676", letterSpacing: "-0.03em", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 600, marginTop: 6 }}>{s.label}</div>
+                </motion.div>
+              ))}
             </motion.div>
           </motion.div>
 
-          {/* Scroll hint */}
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.2)", zIndex: 2 }}
+          <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2.2 }}
+            style={{ position: "absolute", bottom: 28, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.18)", zIndex: 2 }}
           >
-            <ChevronDown size={22} />
+            <ChevronDown size={20} />
           </motion.div>
         </section>
 
-        {/* ── CHAT PREVIEW ── */}
-        <section style={{ padding: "80px 24px 120px", position: "relative" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
+        {/* ══ MARQUEE ══ */}
+        <div style={{ overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,230,118,0.015)", padding: "22px 0" }}>
+          <div className="marquee-inner">
+            {Array(6).fill(["Encrypted", "Real-Time", "Borderless", "Private", "Fast", "Beautiful", "Secure", "Samvaad ✦"]).flat().map((w, i) => (
+              <span key={i} className="syne" style={{ fontSize: "clamp(14px,1.8vw,22px)", fontWeight: 700, color: w.includes("Samvaad") ? "#00e676" : "rgba(255,255,255,0.1)", letterSpacing: "-0.01em", marginRight: "clamp(32px,5vw,60px)" }}>
+                {w}
+              </span>
+            ))}
+          </div>
+        </div>
 
-            {/* Left: text */}
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div style={{ fontSize: 12, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 600, marginBottom: 16 }}>Live Preview</div>
-              <h2 className="syne" style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 24 }}>
+        {/* ══ LIVE PREVIEW ══ */}
+        <section style={{ padding: "100px 24px", position: "relative" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 60, alignItems: "center" }}>
+            <motion.div initial={{ opacity: 0, x: -32 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
+              <div style={{ fontSize: 11, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 14 }}>Live Preview</div>
+              <h2 className="syne" style={{ fontSize: "clamp(30px,4vw,52px)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.08, marginBottom: 22 }}>
                 Messaging that feels <em style={{ fontStyle: "italic", color: "#00e676" }}>alive.</em>
               </h2>
-              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", lineHeight: 1.75, maxWidth: 400, fontWeight: 300 }}>
-                Every interaction is smooth, every message instant. Samvaad's real-time engine ensures your conversations never miss a beat — from one-on-ones to massive group chats.
+              <p style={{ fontSize: 15.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.8, maxWidth: 400, fontWeight: 300, marginBottom: 36 }}>
+                Every interaction is smooth, every message instant. Samvaad's real-time engine ensures nothing is ever lost.
               </p>
-
-              <div style={{ marginTop: 36, display: "flex", flexDirection: "column", gap: 16 }}>
-                {[
-                  "Read receipts with delivery timestamps",
-                  "Emoji reactions & threaded replies",
-                  "Voice messages with waveform playback",
-                ].map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 + 0.3 }}
-                    style={{ display: "flex", alignItems: "center", gap: 12 }}
-                  >
-                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "rgba(0,230,118,0.15)", border: "1px solid rgba(0,230,118,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00e676" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {["Read receipts with delivery timestamps", "Emoji reactions & threaded replies", "Voice messages with waveform playback", "File sharing up to 2 GB"].map((item, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 + 0.3 }} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Check size={11} color="#00e676" strokeWidth={3} />
                     </div>
-                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{item}</span>
+                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.55)" }}>{item}</span>
                   </motion.div>
                 ))}
               </div>
             </motion.div>
-
-            {/* Right: mockup */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              style={{ display: "flex", justifyContent: "center" }}
-            >
+            <motion.div initial={{ opacity: 0, x: 32 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} style={{ display: "flex", justifyContent: "center" }}>
               <ChatMockup />
             </motion.div>
           </div>
         </section>
 
-        {/* ── FEATURES ── */}
-        <section style={{ padding: "80px 24px 120px", background: "rgba(255,255,255,0.01)", position: "relative" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              style={{ textAlign: "center", marginBottom: 64 }}
-            >
-              <div style={{ fontSize: 12, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 600, marginBottom: 16 }}>Why Samvaad</div>
-              <h2 className="syne" style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-                Built different.<br />
-                <span style={{ color: "rgba(255,255,255,0.3)" }}>Not just better.</span>
+        {/* ══ FEATURES ══ */}
+        <section id="features" style={{ padding: "80px 24px 110px", background: "rgba(255,255,255,0.012)" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 60 }}>
+              <div style={{ fontSize: 11, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 14 }}>Why Samvaad</div>
+              <h2 className="syne" style={{ fontSize: "clamp(28px,4vw,52px)", fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 1.1 }}>
+                Built different.<br /><span style={{ color: "rgba(255,255,255,0.28)" }}>Not just better.</span>
               </h2>
             </motion.div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
-              {features.map((f, i) => <FeatureCard key={f.title} {...f} desc={f.desc} index={i} />)}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 18 }}>
+              {features.map(({ icon: Icon, title, desc }, i) => (
+                <motion.div key={title} className="feat-card" initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.6 }}>
+                  <div style={{ width: 50, height: 50, borderRadius: 15, background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.18)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+                    <Icon size={21} color="#00e676" />
+                  </div>
+                  <h3 style={{ fontSize: 16.5, fontWeight: 700, color: "#fff", marginBottom: 10, letterSpacing: "-0.02em" }}>{title}</h3>
+                  <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.38)", lineHeight: 1.72 }}>{desc}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ── MARQUEE ── */}
-        <div style={{ overflow: "hidden", padding: "40px 0", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(0,230,118,0.02)" }}>
-          <motion.div
-            animate={{ x: [0, -1200] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-            style={{ display: "flex", gap: 60, whiteSpace: "nowrap", width: "max-content" }}
-          >
-            {Array(4).fill(["Encrypted", "Real-Time", "Borderless", "Private", "Fast", "Powerful", "Secure", "Samvaad"]).flat().map((w, i) => (
-              <span key={i} className="syne" style={{ fontSize: "clamp(18px, 2.5vw, 28px)", fontWeight: 700, color: i % 8 === 7 ? "#00e676" : "rgba(255,255,255,0.12)", letterSpacing: "-0.02em" }}>
-                {w} <span style={{ color: "rgba(0,230,118,0.3)", fontSize: "0.4em", verticalAlign: "middle" }}>✦</span>
-              </span>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* ── SECURITY STRIP ── */}
-        <section style={{ padding: "100px 24px" }}>
-          <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-            >
-              <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 28px" }}>
+        {/* ══ SECURITY ══ */}
+        <section id="security" style={{ padding: "100px 24px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: "50%", left: "50%", width: 700, height: 700, transform: "translate(-50%,-50%)", background: "radial-gradient(circle,rgba(0,230,118,0.04),transparent 60%)", pointerEvents: "none" }} />
+          <div style={{ maxWidth: 860, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 22, background: "rgba(0,230,118,0.1)", border: "1px solid rgba(0,230,118,0.22)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 28px" }}>
                 <Shield size={30} color="#00e676" />
               </div>
-              <h2 className="syne" style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20 }}>
+              <h2 className="syne" style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.05, marginBottom: 20 }}>
                 Your secrets stay <span style={{ color: "#00e676" }}>yours.</span>
               </h2>
-              <p style={{ fontSize: 17, color: "rgba(255,255,255,0.4)", lineHeight: 1.75, maxWidth: 560, margin: "0 auto", fontWeight: 300 }}>
-                Military-grade AES-256 encryption with perfect forward secrecy. Not even Samvaad can read your messages. Zero logs, zero surveillance, zero compromise.
+              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.38)", lineHeight: 1.8, maxWidth: 520, margin: "0 auto 48px", fontWeight: 300 }}>
+                Military-grade AES-256 encryption with perfect forward secrecy. Not even Samvaad can read your messages. Zero logs, zero surveillance.
               </p>
+              <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
+                {["AES-256 Encryption", "Perfect Forward Secrecy", "Zero Logs Policy", "Open Source Audited"].map((tag) => (
+                  <div key={tag} style={{ padding: "8px 18px", borderRadius: 100, border: "1px solid rgba(0,230,118,0.2)", background: "rgba(0,230,118,0.06)", fontSize: 12.5, color: "#00e676", fontWeight: 600 }}>{tag}</div>
+                ))}
+              </div>
             </motion.div>
           </div>
         </section>
 
-        {/* ── CTA ── */}
+        {/* ══ TESTIMONIALS ══ */}
+        <section style={{ padding: "80px 24px 100px", background: "rgba(255,255,255,0.01)" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 52 }}>
+              <div style={{ fontSize: 11, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 14 }}>Loved by Users</div>
+              <h2 className="syne" style={{ fontSize: "clamp(26px,3.5vw,46px)", fontWeight: 800, letterSpacing: "-0.03em" }}>Real people. Real conversations.</h2>
+            </motion.div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 18 }}>
+              {testimonials.map((t, i) => (
+                <motion.div key={t.name} className="testi-card" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.12 }}>
+                  <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
+                    {Array(5).fill(0).map((_, j) => <span key={j} style={{ color: "#00e676", fontSize: 13 }}>★</span>)}
+                  </div>
+                  <p style={{ fontSize: 14.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>"{t.text}"</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#00e676,#00bcd4)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, color: "#050e07" }}>{t.name[0]}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, color: "#fff" }}>{t.name}</div>
+                      <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.3)" }}>{t.role}</div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ══ PRICING ══ */}
+        <section id="pricing" style={{ padding: "80px 24px 110px" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 56 }}>
+              <div style={{ fontSize: 11, color: "#00e676", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 14 }}>Simple Pricing</div>
+              <h2 className="syne" style={{ fontSize: "clamp(28px,4vw,52px)", fontWeight: 800, letterSpacing: "-0.035em" }}>No surprises. No hidden fees.</h2>
+            </motion.div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 20, alignItems: "start" }}>
+              {pricingPlans.map((plan, i) => (
+                <motion.div key={plan.name} className={`price-card${plan.featured ? " featured" : ""}`} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+                  {plan.featured && (
+                    <div style={{ position: "absolute", top: 18, right: 20, background: "linear-gradient(135deg,#00e676,#00c853)", color: "#050e07", fontSize: 10.5, fontWeight: 800, padding: "4px 12px", borderRadius: 100, letterSpacing: "0.06em", textTransform: "uppercase" }}>Most Popular</div>
+                  )}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: plan.featured ? "#00e676" : "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{plan.name}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 6 }}>
+                    <span className="syne" style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.04em", color: "#fff" }}>{plan.price}</span>
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>/{plan.period}</span>
+                  </div>
+                  <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.38)", marginBottom: 28, lineHeight: 1.6 }}>{plan.desc}</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+                    {plan.features.map((f) => (
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Check size={13} color="#00e676" strokeWidth={3} />
+                        <span style={{ fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link to="/register" className={plan.featured ? "btn-primary" : "btn-ghost"} style={{ width: "100%", justifyContent: "center", padding: "13px" }}>{plan.cta}</Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ══ CTA BANNER ══ */}
         <section style={{ padding: "40px 24px 100px" }}>
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            initial={{ opacity: 0, y: 32, scale: 0.98 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              maxWidth: 1000,
-              margin: "0 auto",
-              background: "linear-gradient(135deg, rgba(0,230,118,0.12), rgba(0,188,212,0.06))",
-              border: "1px solid rgba(0,230,118,0.2)",
-              borderRadius: 40,
-              padding: "clamp(48px, 8vw, 96px) clamp(32px, 6vw, 80px)",
-              textAlign: "center",
-              position: "relative",
-              overflow: "hidden",
-            }}
+            style={{ maxWidth: 1000, margin: "0 auto", background: "linear-gradient(135deg,rgba(0,230,118,0.11),rgba(0,180,90,0.06))", border: "1px solid rgba(0,230,118,0.22)", borderRadius: 40, padding: "clamp(48px,7vw,90px) clamp(28px,6vw,80px)", textAlign: "center", position: "relative", overflow: "hidden" }}
           >
-            <div style={{ position: "absolute", top: "-50%", left: "-20%", width: "60%", height: "200%", background: "radial-gradient(ellipse, rgba(0,230,118,0.08), transparent 60%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: "-40%", left: "-15%", width: "55%", height: "200%", background: "radial-gradient(ellipse,rgba(0,230,118,0.07),transparent 60%)", pointerEvents: "none" }} />
             <div style={{ position: "relative", zIndex: 1 }}>
-              <h2 className="syne" style={{ fontSize: "clamp(36px, 6vw, 80px)", fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 0.95, marginBottom: 24 }}>
+              <h2 className="syne" style={{ fontSize: "clamp(34px,6vw,78px)", fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 0.93, marginBottom: 22 }}>
                 Join the<br />conversation.
               </h2>
-              <p style={{ fontSize: 17, color: "rgba(255,255,255,0.5)", marginBottom: 40, maxWidth: 400, margin: "0 auto 40px", fontWeight: 300, lineHeight: 1.65 }}>
-                Over 500,000 people already use Samvaad. Your next great conversation starts right now.
+              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.42)", margin: "0 auto 38px", maxWidth: 380, fontWeight: 300, lineHeight: 1.7 }}>
+                500,000+ people already use Samvaad. Your next great conversation starts right now.
               </p>
-              <Link to="/register" className="btn-primary" style={{ fontSize: 17, padding: "18px 36px" }}>
-                Start Free — No credit card <ArrowRight size={18} />
+              <Link to="/register" className="btn-primary" style={{ fontSize: 16, padding: "17px 34px" }}>
+                Start Free — No card needed <ArrowRight size={17} />
               </Link>
             </div>
           </motion.div>
         </section>
 
-        {/* ── FOOTER ── */}
-        <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 24px", background: "rgba(0,0,0,0.3)" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <MessageCircle size={14} color="#000" fill="#000" />
+        {/* ══ FOOTER ══ */}
+        <footer style={{ borderTop: "1px solid rgba(255,255,255,0.055)", padding: "48px 24px", background: "rgba(0,0,0,0.25)" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 40, marginBottom: 48 }}>
+              <div>
+                <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 9, textDecoration: "none", marginBottom: 16 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 9, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <MessageCircle size={15} color="#050e07" fill="#050e07" />
+                  </div>
+                  <span className="syne" style={{ fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "-0.03em" }}>samvaad</span>
+                </Link>
+                <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.28)", lineHeight: 1.75, maxWidth: 280, fontWeight: 300 }}>
+                  Redefining how the world connects, shares, and builds communities in the digital age.
+                </p>
               </div>
-              <span className="syne" style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>samvaad</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 12, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 18 }}>Platform</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {["Features", "Security", "Desktop App", "Mobile"].map((l) => <a key={l} href="#" className="footer-link">{l}</a>)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 12, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 18 }}>Company</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {["About Us", "Privacy", "Terms", "Blog"].map((l) => <a key={l} href="#" className="footer-link">{l}</a>)}
+                </div>
+              </div>
             </div>
-
-            <div style={{ display: "flex", gap: 32 }}>
-              {["Privacy", "Terms", "Security", "About"].map((l) => (
-                <a key={l} href="#" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textDecoration: "none", transition: "color 0.2s" }}
-                  onMouseEnter={e => e.target.style.color = "#00e676"}
-                  onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.3)"}
-                >{l}</a>
-              ))}
+            <div style={{ paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.18)" }}>© 2024 Samvaad Cloud Pvt. Ltd. All rights reserved.</p>
+              <div style={{ display: "flex", gap: 20 }}>
+                {["Privacy", "Terms", "Cookies"].map((l) => <a key={l} href="#" style={{ fontSize: 12, color: "rgba(255,255,255,0.18)", textDecoration: "none" }}>{l}</a>)}
+              </div>
             </div>
-
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>© 2024 Samvaad Cloud. All rights reserved.</p>
           </div>
         </footer>
+
       </div>
     </>
   );
-};
-
-export default Index;
+}
