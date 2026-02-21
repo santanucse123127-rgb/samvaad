@@ -225,17 +225,22 @@ const Chat = ({ token }) => {
     await sendMessage(codeData.code, "code", null, { codeLanguage: codeData.language });
   };
 
-  const handleTimeCapsule = async (unlockDate) => {
+  const handleTimeCapsule = async (unlockDate, unlockConditions) => {
     if (!newMessage.trim() && !uploadPreview) return;
+
+    const extraData = {
+      unlockAt: unlockDate,
+      unlockConditions: unlockConditions ? JSON.stringify(unlockConditions) : null
+    };
 
     if (uploadPreview) {
       const type = uploadPreview.type.startsWith("image/") ? "image"
         : uploadPreview.type.startsWith("video/") ? "video"
           : uploadPreview.type.startsWith("audio/") ? "voice" : "file";
-      await sendMediaMessage(uploadPreview.file, type, { unlockAt: unlockDate.toISOString() });
+      await sendMediaMessage(uploadPreview.file, type, extraData);
       setUploadPreview(null);
     } else {
-      await sendMessage(newMessage, "text", null, { unlockAt: unlockDate.toISOString() });
+      await sendMessage(newMessage, "text", null, extraData);
       setNewMessage("");
     }
 

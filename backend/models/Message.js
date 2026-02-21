@@ -146,6 +146,19 @@ const messageSchema = new mongoose.Schema({
   unlockAt: {
     type: Date,
   },
+  unlockConditions: {
+    type: {
+      type: String,
+      enum: ['birthday', 'location', 'count', 'online', 'time'],
+    },
+    location: {
+      latitude: Number,
+      longitude: Number,
+      radius: { type: Number, default: 100 }, // meters
+      address: String
+    },
+    messageCount: Number,
+  },
 }, {
   timestamps: true,
 });

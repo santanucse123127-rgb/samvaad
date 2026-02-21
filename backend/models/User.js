@@ -107,6 +107,9 @@ const userSchema = new mongoose.Schema({
       auth: String,
     },
   }],
+  birthday: {
+    type: Date,
+  },
 }, {
   timestamps: true,
 });

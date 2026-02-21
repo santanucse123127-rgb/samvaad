@@ -90,7 +90,8 @@ export const sendMessage = async (req, res) => {
       scheduledAt,
       codeLanguage,
       isEncrypted,
-      unlockAt
+      unlockAt,
+      unlockConditions
     } = req.body;
 
     const conversation = await Conversation.findOne({
@@ -116,6 +117,7 @@ export const sendMessage = async (req, res) => {
       status: 'sent',
       isEncrypted: isEncrypted || false,
       unlockAt: unlockAt || null,
+      unlockConditions: unlockConditions ? JSON.parse(unlockConditions) : null,
     };
 
     // Handle Polls
@@ -249,7 +251,7 @@ export const uploadMedia = async (req, res) => {
       });
     }
 
-    const { conversationId, type, replyTo, duration, unlockAt } = req.body;
+    const { conversationId, type, replyTo, duration, unlockAt, unlockConditions } = req.body;
 
     const conversation = await Conversation.findOne({
       _id: conversationId,
@@ -290,6 +292,7 @@ export const uploadMedia = async (req, res) => {
       thumbnail: result.eager?.[0]?.secure_url || null,
       replyTo: replyTo || null,
       unlockAt: unlockAt || null,
+      unlockConditions: unlockConditions ? JSON.parse(unlockConditions) : null,
       status: "sent",
     });
 

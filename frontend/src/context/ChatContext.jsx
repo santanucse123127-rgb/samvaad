@@ -103,6 +103,7 @@ export const ChatProvider = ({ children, token, userId }) => {
         id: msg._id,
         content: msg.content || "",
         sender: msg.sender._id === userId ? "user" : "other",
+        senderId: msg.sender._id,
         timestamp: new Date(msg.createdAt),
         name: msg.sender.name,
         avatar: msg.sender.avatar,
@@ -120,6 +121,7 @@ export const ChatProvider = ({ children, token, userId }) => {
         forwarded: msg.forwarded,
         isEncrypted: msg.isEncrypted,
         unlockAt: msg.unlockAt,
+        unlockConditions: msg.unlockConditions,
       };
     },
     [userId],

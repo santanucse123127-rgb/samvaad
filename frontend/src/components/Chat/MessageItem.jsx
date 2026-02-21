@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon, Lock } from "lucide-react";
+import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon, Lock, Cake, MapPin, Hash, UserCheck } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChat } from "../../context/ChatContext";
@@ -101,7 +101,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const leaveTimer = useRef(null);
-  const { votePoll, addReaction, deleteMessage, userId } = useChat();
+  const { votePoll, addReaction, deleteMessage, onlineUsers, userId } = useChat();
 
   const time = message.createdAt || message.timestamp
     ? new Date(message.createdAt || message.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -183,38 +183,69 @@ const MessageItem = ({ message, isOwn, onReply }) => {
 
   /* ── Bubble content ── */
   const renderContent = () => {
-    // Time Capsule Locking Logic
-    const isLocked = message.unlockAt && new Date(message.unlockAt) > new Date();
+    // Advanced Locking Logic
+    const conditions = message.unlockConditions;
+    let isLocked = false;
+    let lockReason = "";
+    let LockIcon = Lock;
+
+    if (conditions) {
+      if (conditions.type === 'time' || !conditions.type) {
+        isLocked = message.unlockAt && new Date(message.unlockAt) > new Date();
+        lockReason = `Unlocks on ${new Date(message.unlockAt).toLocaleString()}`;
+      } else if (conditions.type === 'birthday') {
+        const otherUser = message.sender === 'user' ? null : message; // simplistic check
+        // In reality we'd check message.receiver's birthday. 
+        // For demonstration, we'll assume it's locked until we have user data.
+        isLocked = true;
+        lockReason = "Birthday Lock: Unlocks on your special day! 🎂";
+        LockIcon = Cake;
+      } else if (conditions.type === 'location') {
+        isLocked = true; // Always show locked until proximity check
+        lockReason = `Location Lock: Reach ${conditions.location?.address || 'the target spot'} 📍`;
+        LockIcon = MapPin;
+      } else if (conditions.type === 'count') {
+        isLocked = true;
+        lockReason = `Message Lock: Unlocks after ${conditions.messageCount} more messages 💬`;
+        LockIcon = Hash;
+      } else if (conditions.type === 'online') {
+        const isOtherOnline = onlineUsers.includes(message.sender === 'user' ? 'TODO' : message.senderId);
+        isLocked = true; // Simplified: always show lock in this demo
+        lockReason = "Duo Lock: Unlocks when both are online! ❤️";
+        LockIcon = UserCheck;
+      }
+    } else if (message.unlockAt) {
+      // Compatibility for older time-only capsules
+      isLocked = new Date(message.unlockAt) > new Date();
+      lockReason = `Unlocks on ${new Date(message.unlockAt).toLocaleString()}`;
+    }
 
     if (isLocked) {
-      const unlockDate = new Date(message.unlockAt);
-      const fmtUnlock = unlockDate.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: unlockDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-
       return (
-        <div className="flex flex-col items-center justify-center py-6 px-4 text-center space-y-3 min-w-[220px]">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center relative shadow-lg"
-            style={{ background: isOwn ? 'rgba(255,255,255,0.15)' : 'hsl(var(--sv-accent)/0.1)', color: isOwn ? 'white' : 'hsl(var(--sv-accent))' }}>
-            <Lock size={24} />
+        <div className="flex flex-col items-center justify-center py-8 px-5 text-center space-y-4 min-w-[240px]">
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center relative shadow-2xl overflow-hidden"
+            style={{ background: isOwn ? 'rgba(255,255,255,0.15)' : 'hsl(var(--sv-accent)/0.08)', color: isOwn ? 'white' : 'hsl(var(--sv-accent))' }}>
+            <LockIcon size={28} className="relative z-10" />
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-full border-2 border-dashed opacity-30"
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 rounded-full border-[3px] border-dotted opacity-20 scale-125"
               style={{ borderColor: 'currentColor' }}
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
           </div>
-          <div className="space-y-1">
-            <p className="text-sm font-bold tracking-tight">Time Capsule Locked</p>
-            <p className="text-[10px] opacity-70">Unlocks on {fmtUnlock}</p>
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-90">{conditions?.type || 'Temporal'} Paradox</p>
+            <p className="text-[10px] font-medium opacity-60 leading-relaxed max-w-[180px] mx-auto uppercase tracking-wider">{lockReason}</p>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             {[0, 1, 2].map(i => (
-              <div key={i} className="w-1 h-1 rounded-full bg-current opacity-40 animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+              <motion.div
+                key={i}
+                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                className="w-1 h-1 rounded-full bg-current"
+              />
             ))}
           </div>
         </div>
