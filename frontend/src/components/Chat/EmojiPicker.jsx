@@ -13,21 +13,21 @@ const EmojiPicker = ({ onEmojiSelect }) => {
 
   return (
     <motion.div
-      className="bg-gray-800 rounded-xl shadow-2xl p-4 border border-gray-700"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      className="bg-card rounded-[24px] shadow-2xl p-4 border border-border/50 w-72"
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
     >
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600">
+      <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-none p-1 bg-muted/30 rounded-xl">
         {Object.keys(categories).map((category) => (
           <button
             key={category}
             onClick={() => setSelectedCategory(category)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-              selectedCategory === category
-                ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${selectedCategory === category
+                ? "bg-card text-wa-accent shadow-sm"
+                : "text-wa-text-secondary hover:text-wa-text-primary"
+              }`}
           >
             {category}
           </button>
@@ -35,12 +35,12 @@ const EmojiPicker = ({ onEmojiSelect }) => {
       </div>
 
       {/* Emoji Grid */}
-      <div className="grid grid-cols-8 gap-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
+      <div className="grid grid-cols-6 gap-1 max-h-56 overflow-y-auto scrollbar-custom pr-1">
         {categories[selectedCategory].map((emoji, index) => (
           <motion.button
             key={index}
             onClick={() => onEmojiSelect(emoji)}
-            className="text-2xl hover:scale-125 transition-transform p-1 hover:bg-gray-700 rounded"
+            className="text-2xl hover:bg-wa-accent/10 rounded-xl aspect-square flex items-center justify-center transition-colors"
             whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.9 }}
           >

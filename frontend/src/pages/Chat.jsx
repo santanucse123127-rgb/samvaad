@@ -1,804 +1,934 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Send,
-  Smile,
-  Paperclip,
-  Phone,
-  Video,
-  MoreVertical,
-  Search,
-  Settings,
-  ArrowLeft,
-  Users,
-  X,
-  Image,
-  File,
-  Plus,
-  Mic,
-  Check,
-  CheckCheck,
-  Reply,
-  Forward,
-  Star,
-  Trash2,
-  Edit,
-  Clock,
-  Code,
-  BarChart2,
+  Send, Smile, Phone, Video, MoreVertical, Search, X, Plus,
+  Trash2, LogOut, Settings, Image as ImageIcon, Users,
+  ChevronDown, File, MessageSquare, Check, Clipboard, Lock,
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
+import { useAuth } from "../context/AuthContext";
 import NewChatModal from "../components/NewChatModal";
+import ContactSyncGateway from "../components/ContactSyncGateway";
 import MessageItem from "../components/Chat/MessageItem";
 import EmojiPicker from "../components/Chat/EmojiPicker";
 import PollModal from "../components/Chat/PollModal";
 import ScheduleModal from "../components/Chat/ScheduleModal";
 import CodeModal from "../components/Chat/CodeModal";
 import GroupInfoModal from "../components/GroupInfoModal";
+import TypingIndicator from "../components/Chat/TypingIndicator";
+import CallInterface from "../components/Chat/CallInterface";
+import ClipboardSync from "../components/Chat/ClipboardSync";
+import WallpaperModal from "../components/Chat/WallpaperModal";
+import MyProfilePanel from "../components/MyProfilePanel";
 import { getUsers } from "../services/chatAPI";
 
+/* ───────────────────────── helpers ───────────────────────── */
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+const fmtDate = (d) => {
+  if (!d) return "";
+  const now = new Date(); const date = new Date(d);
+  const diff = Math.floor((now - date) / 86400000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff < 7) return date.toLocaleDateString("en-US", { weekday: "long" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+const fmtLastSeen = (ls) => {
+  if (!ls) return "Last seen: unknown";
+  const date = new Date(ls);
+  const now = new Date();
+  const diff = Math.floor((now - date) / 86400000);
+  let datePart;
+  if (diff === 0) datePart = "today";
+  else if (diff === 1) datePart = "yesterday";
+  else if (diff < 7) datePart = date.toLocaleDateString("en-US", { weekday: "long" });
+  else datePart = date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  const timePart = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `Last seen ${datePart} at ${timePart}`;
+};
+
+/* ─── Avatar ─── */
+const Avatar = ({ src, name, size = 10, online = false }) => (
+  <div className="relative flex-shrink-0" style={{ width: `${size * 4}px`, height: `${size * 4}px` }}>
+    <div className="sv-avatar w-full h-full text-base font-bold rounded-full overflow-hidden">
+      {src
+        ? <img src={src} alt={name} className="w-full h-full object-cover" />
+        : <span className="flex items-center justify-center w-full h-full" style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)/0.3), hsl(var(--sv-accent-2)/0.3))' }}>
+          {name?.[0]?.toUpperCase()}
+        </span>
+      }
+    </div>
+    {online && <span className="sv-online-dot" />}
+  </div>
+);
+
+/* ─── BG options ─── */
+const BG_OPTIONS = [
+  { id: "default", label: "Default", cls: "chatbg-default" },
+  { id: "gradient", label: "Gradient", cls: "chatbg-gradient" },
+  { id: "midnight", label: "Midnight", cls: "chatbg-midnight" },
+  { id: "ocean", label: "Ocean", cls: "chatbg-ocean" },
+  { id: "forest", label: "Forest", cls: "chatbg-forest" },
+  { id: "doodle", label: "Pattern", cls: "chatbg-doodle" },
+];
+
+/* ═══════════════════════════ MAIN COMPONENT ═══════════════════════════ */
 const Chat = ({ token }) => {
   const {
-    conversations,
-    selectedConversation,
-    setSelectedConversation,
-    messages,
-    loading,
-    typingUsers,
-    recordingVoice,
-    sendMessage,
-    sendMediaMessage,
-    createNewConversation,
-    handleTyping,
-    handleStopTyping,
-    getConversationName,
-    getConversationAvatar,
-    isUserOnline,
-    getLastSeen,
-    addReaction,
-    removeReaction,
+    conversations, selectedConversation, setSelectedConversation,
+    messages, loading, typingUsers, recordingVoice,
+    sendMessage, sendMediaMessage, createNewConversation,
+    handleTyping, handleStopTyping,
+    getConversationName, getConversationAvatar, isUserOnline, getLastSeen,
+    addReaction, notification, setNotification,
+    userId, conversationWallpapers, setConversationWallpaper,
+    setActiveCall, createGroupConversation, groupInvite, setGroupInvite, respondGroupInvite,
   } = useChat();
 
+  const { user, logout } = useAuth();
+
+  /* ─── Local state ─── */
   const [newMessage, setNewMessage] = useState("");
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [uploadPreview, setUploadPreview] = useState(null);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState(null);
-  const [selectedMessages, setSelectedMessages] = useState([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [users, setUsers] = useState([]);
-
+  const [uploadPreview, setUploadPreview] = useState(null);
   const [showPollModal, setShowPollModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showSidebarMenu, setShowSidebarMenu] = useState(false);
+  const [showMyProfile, setShowMyProfile] = useState(false);
+  const [mobileShowSidebar, setMobileShowSidebar] = useState(true);
+  const [chatBg, setChatBg] = useState(() => localStorage.getItem("samvaad-chatbg") || "default");
+  const [, setTick] = useState(0);
+  const [showClipboard, setShowClipboard] = useState(false);
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
   const messageContainerRef = useRef(null);
-  const [load, setLoad] = useState(false);
-  // const [searchQuery, setSearchQuery] = useState('');
-  const scrollToBottom = () => {
+  const moreMenuRef = useRef(null);
+  const sidebarMenuRef = useRef(null);
+
+  // Force relative-time re-render every minute
+  useEffect(() => {
+    const t = setInterval(() => setTick(x => x + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-
-  const fetchUsers = async () => {
-    try {
-      setLoad(true);
-      const response = await getUsers(token);
-      if (response.success) {
-        setUsers(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoad(false);
-    }
-  };
-  useEffect(() => {
-    fetchUsers();
-  }, [token])
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  console.log("Fil con : ", filteredUsers)
-  useEffect(() => {
-    scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async (e) => {
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
+      if (sidebarMenuRef.current && !sidebarMenuRef.current.contains(e.target)) setShowSidebarMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ─── Derived ─── */
+  const filteredConversations = useMemo(() =>
+    conversations.filter(c => getConversationName(c).toLowerCase().includes(searchQuery.toLowerCase())),
+    [conversations, searchQuery, getConversationName]
+  );
+
+  const isTyping = selectedConversation && typingUsers[selectedConversation._id];
+  const currentBgCls = BG_OPTIONS.find(b => b.id === chatBg)?.cls || "chatbg-default";
+
+  /* ─── Handlers ─── */
+  const handleSend = async (e) => {
     e?.preventDefault();
     if (!newMessage.trim() && !uploadPreview) return;
-
     if (uploadPreview) {
-      const type = uploadPreview.type.startsWith('image/') ? 'image' :
-        uploadPreview.type.startsWith('video/') ? 'video' :
-          uploadPreview.type.startsWith('audio/') ? 'voice' : 'file';
+      const type = uploadPreview.type.startsWith("image/") ? "image"
+        : uploadPreview.type.startsWith("video/") ? "video"
+          : uploadPreview.type.startsWith("audio/") ? "voice" : "file";
       await sendMediaMessage(uploadPreview.file, type);
       setUploadPreview(null);
     } else {
-      await sendMessage(newMessage, 'text', replyToMessage?._id);
+      await sendMessage(newMessage, "text", replyToMessage?._id);
     }
-
     setNewMessage("");
     setReplyToMessage(null);
     handleStopTyping();
   };
 
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    handleTyping();
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setUploadPreview({ file, preview: ev.target.result, type: file.type, name: file.name });
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleNewChat = async (user) => {
+    const result = await createNewConversation(user);
+    if (result.success) setShowNewChatModal(false);
+    return result;
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setNewMessage(p => p + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleBgChange = (bgId) => {
+    setChatBg(bgId);
+    localStorage.setItem("samvaad-chatbg", bgId);
+    setShowBgPicker(false);
+    setShowMoreMenu(false);
+  };
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 120);
+  };
+
   const handleCreatePoll = async (pollData) => {
-    await sendMessage(pollData.question, 'poll', null, {
-      pollQuestion: pollData.question,
-      pollOptions: pollData.options,
-      allowMultipleAnswers: pollData.allowMultiple
+    await sendMessage(pollData.question, "poll", null, {
+      pollQuestion: pollData.question, pollOptions: pollData.options, allowMultipleAnswers: pollData.allowMultiple
     });
   };
 
   const handleScheduleMessage = async (date) => {
     if (!newMessage.trim()) return;
-    await sendMessage(newMessage, 'text', null, {
-      scheduledAt: date
-    });
+    await sendMessage(newMessage, "text", null, { scheduledAt: date });
     setNewMessage("");
   };
 
   const handleSendCode = async (codeData) => {
-    await sendMessage(codeData.code, 'code', null, {
-      codeLanguage: codeData.language
+    await sendMessage(codeData.code, "code", null, { codeLanguage: codeData.language });
+  };
+
+  const handleLogout = () => {
+    setShowSidebarMenu(false);
+    logout();
+  };
+
+  /* ─── Message date separators ─── */
+  const messagesWithDates = useMemo(() => {
+    const result = [];
+    let lastDate = null;
+    messages.forEach((msg) => {
+      const d = fmtDate(msg.timestamp);
+      if (d !== lastDate) { result.push({ type: "date", label: d, id: `date-${d}` }); lastDate = d; }
+      result.push({ type: "message", ...msg });
     });
-  };
-
-  const handleInputChange = (e) => {
-    setNewMessage(e.target.value);
-    handleTyping();
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      handleStopTyping();
-    }, 1000);
-  };
-
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setUploadPreview({
-          file,
-          preview: e.target.result,
-          type: file.type,
-          name: file.name,
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleNewChat = async (user) => {
-    const result = await createNewConversation(user);
-    if (result.success) {
-      setShowNewChatModal(false);
-    }
     return result;
-  };
+  }, [messages]);
 
-  const handleUserClick = async (user) => {
-    console.log('👤 User clicked:', user);
-    console.log('🎯 Calling onCreateChat...');
-
-    try {
-      const result = await handleNewChat(user);
-      console.log('✅ onCreateChat result:', result);
-    } catch (error) {
-      console.error('❌ Error in handleUserClick:', error);
-    }
-  };
-
-  const handleEmojiSelect = (emoji) => {
-    setNewMessage((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
-  const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const formatLastSeen = (lastSeen) => {
-    if (!lastSeen) return "Last seen recently";
-
-    const now = new Date();
-    const lastSeenDate = new Date(lastSeen);
-    const diffMs = now - lastSeenDate;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Last seen just now";
-    if (diffMins < 60) return `Last seen ${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `Last seen ${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `Last seen ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-
-    return `Last seen ${lastSeenDate.toLocaleDateString()}`;
-  };
-
-  // const filteredConversations = useMemo(() => {
-  //   return conversations.filter((conv) =>
-  //     getConversationName(conv).toLowerCase().includes(searchQuery.toLowerCase())
-  //   );
-  // }, [conversations, searchQuery, getConversationName]);
-  // console.log("Filter convo : ",filteredConversations)
-
-  const isTyping = selectedConversation && typingUsers[selectedConversation._id];
-  const isRecordingVoice = selectedConversation && recordingVoice[selectedConversation._id];
-
-  const getMessageStatusIcon = (status) => {
-    switch (status) {
-      case "sent":
-        return <Check className="w-4 h-4" />;
-      case "delivered":
-        return <CheckCheck className="w-4 h-4" />;
-      case "read":
-        return <CheckCheck className="w-4 h-4 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
-
+  /* ══════════════════════════ RENDER ══════════════════════════ */
   return (
-    <div className="min-h-screen flex relative overflow-hidden bg-[#0a0f1e]">
-      <AnimatePresence>
-        {showSidebar && (
-          <motion.aside
-            className="w-80 bg-[#111827] border-r border-gray-800 flex flex-col relative z-10 shadow-2xl"
-            initial={{ x: -320, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -320, opacity: 0 }}
-            transition={{ type: "spring", damping: 25 }}
-          >
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-gray-800 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  Messages
-                </h2>
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    onClick={() => setShowNewChatModal(true)}
-                    className="w-9 h-9 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-purple-500/50"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Plus className="w-5 h-5" />
-                  </motion.button>
-                  <button className="w-9 h-9 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors">
-                    <Settings className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-              </div>
+    <ContactSyncGateway>
+      <div className="flex h-screen overflow-hidden" style={{ background: 'hsl(var(--sv-bg))' }}>
 
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none text-sm transition-all text-gray-200 placeholder-gray-500"
-                />
-              </div>
-            </div>
-
-            {/* Conversations List */}
-            {/* <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-              {filteredConversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8 text-center">
-                  <Users className="w-16 h-16 mb-4 opacity-30" />
-                  <p className="text-sm">No conversations yet</p>
-                  <p className="text-xs mt-2">Start a new chat to begin messaging</p>
-                </div>
-              ) : (
-                filteredConversations.map((conversation, index) => {
-                  const isOnline = isUserOnline(conversation);
-                  // const unreadCount = conversation?.unreadCount?.get(conversation._id) || 0;
-                  const unread =
-  conversation.unreadCount?.[conversation._id] ?? 0;
-                  
-                  return (
-                    <motion.button
-                      key={conversation._id}
-                      className={`w-full p-4 flex items-center gap-3 hover:bg-gray-800/50 transition-all border-b border-gray-800/50 ${
-                        selectedConversation?._id === conversation._id
-                          ? "bg-gradient-to-r from-purple-900/30 to-blue-900/30 border-l-4 border-l-purple-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedConversation(conversation)}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.03 }}
-                      whileHover={{ x: 4 }}
-                    >
-                      <div className="relative flex-shrink-0">
-                        {getConversationAvatar(conversation) ? (
-                          <img
-                            src={getConversationAvatar(conversation)}
-                            alt={getConversationName(conversation)}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                            {conversation.type === "group" ? (
-                              <Users className="w-6 h-6 text-white" />
-                            ) : (
-                              <span className="text-lg font-semibold text-white">
-                                {getConversationName(conversation)[0]?.toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {isOnline && (
-                          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-[#111827]" />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium truncate text-gray-200">
-                            {getConversationName(conversation)}
-                          </span>
-                          {conversation.lastMessage && (
-                            <span className="text-xs text-gray-500">
-                              {formatTime(conversation.updatedAt)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-500 truncate">
-                            {conversation.lastMessage?.content || "No messages yet"}
-                          </p>
-                          {unreadCount > 0 && (
-                            <span className="ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs flex items-center justify-center font-medium">
-                              {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  );
-                })
-              )}
-            </div> */}
-
-            <div className=" overflow-y-auto">
-              {loading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
-                </div>
-              ) : filteredUsers.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  No users found
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <motion.button
-                    key={user._id}
-                    onClick={() => handleUserClick(user)}
-                    className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                      {user.avatar ? (
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg font-semibold text-white">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {user.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {user.email}
-                      </p>
-                    </div>
-                  </motion.button>
-                ))
-              )}
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative z-10 h-screen">
-        {/* Chat Header */}
-        <div className="bg-[#111827] border-b border-gray-800 p-4 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              onClick={() => setShowSidebar(!showSidebar)}
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-400" />
-            </button>
-
-            {selectedConversation ? (
-              <>
-                <div className="relative flex-shrink-0">
-                  {getConversationAvatar(selectedConversation) ? (
-                    <img
-                      src={getConversationAvatar(selectedConversation)}
-                      alt={getConversationName(selectedConversation)}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                      {selectedConversation.type === "group" ? (
-                        <Users className="w-5 h-5 text-white" />
-                      ) : (
-                        <span className="font-semibold text-white">
-                          {getConversationName(selectedConversation)[0]?.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {isUserOnline(selectedConversation) && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-[#111827]" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-200">
-                    {getConversationName(selectedConversation)}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {isTyping ? (
-                      <span className="text-purple-400">typing...</span>
-                    ) : isRecordingVoice ? (
-                      <span className="text-red-400">recording voice...</span>
-                    ) : isUserOnline(selectedConversation) ? (
-                      "Online"
-                    ) : (
-                      formatLastSeen(getLastSeen(selectedConversation))
-                    )}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div>
-                <h3 className="font-semibold text-gray-200">Select a chat</h3>
-                <p className="text-xs text-gray-500">Choose a conversation to start messaging</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <motion.button
-              className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Phone className="w-5 h-5 text-gray-400" />
-            </motion.button>
-            <motion.button
-              className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Video className="w-5 h-5 text-gray-400" />
-            </motion.button>
-            <motion.button
-              onClick={() => selectedConversation.type === 'group' && setShowGroupInfoModal(true)}
-              className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <MoreVertical className="w-5 h-5 text-gray-400" />
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div
-          ref={messageContainerRef}
-          className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-[#0a0f1e] via-[#0d1425] to-[#0a0f1e] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
-        >
-          {loading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
-            </div>
-          ) : !selectedConversation ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-6">
-                <Users className="w-12 h-12 text-purple-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">Welcome to NEXUS Chat</h3>
-              <p className="text-sm text-gray-500">Select a conversation or start a new chat</p>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <p className="text-sm">No messages yet</p>
-              <p className="text-xs mt-2">Start the conversation!</p>
-            </div>
-          ) : (
-            <>
-              {messages.map((message, index) => (
-                <MessageItem
-                  key={message.id}
-                  message={message}
-                  isOwn={message.sender === "user"}
-                  showAvatar={
-                    index === 0 ||
-                    messages[index - 1].sender !== message.sender
-                  }
-                  getMessageStatusIcon={getMessageStatusIcon}
-                  onReply={setReplyToMessage}
-                  onReaction={addReaction}
-                  index={index}
-                />
-              ))}
-
-              {isTyping && (
-                <motion.div
-                  className="flex justify-start"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <div className="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 shadow-lg">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Reply Preview */}
+        {/* ── In-app notification toast ── */}
         <AnimatePresence>
-          {replyToMessage && (
+          {notification && (
             <motion.div
-              className="px-4 py-3 bg-[#111827] border-t border-gray-800 flex items-center justify-between"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-12 bg-purple-500 rounded-full" />
-                <div>
-                  <p className="text-xs text-purple-400 font-medium">
-                    Replying to {replyToMessage.name}
-                  </p>
-                  <p className="text-sm text-gray-400 truncate max-w-md">
-                    {replyToMessage.content}
-                  </p>
-                </div>
+              className="sv-toast cursor-pointer"
+              initial={{ opacity: 0, y: -24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24 }}
+              onClick={() => {
+                const c = conversations.find(c => c._id === notification.conversationId);
+                if (c) { setSelectedConversation(c); setMobileShowSidebar(false); }
+                setNotification(null);
+              }}>
+              <Avatar src={notification.sender?.avatar} name={notification.sender?.name} size={9} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate" style={{ color: 'hsl(var(--sv-text))' }}>{notification.sender?.name}</p>
+                <p className="text-xs truncate" style={{ color: 'hsl(var(--sv-text-2))' }}>{notification.content}</p>
               </div>
-              <button
-                onClick={() => setReplyToMessage(null)}
-                className="w-8 h-8 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-400" />
+              <button onClick={e => { e.stopPropagation(); setNotification(null); }} className="sv-icon-btn p-1.5 rounded-lg">
+                <X size={14} />
               </button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* File Upload Preview */}
+        {/* ── Group invite toast ── */}
         <AnimatePresence>
-          {uploadPreview && (
+          {groupInvite && (
             <motion.div
-              className="p-4 border-t border-gray-800 bg-[#111827]"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              className="sv-toast"
+              style={{ top: notification ? '90px' : '16px', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', maxWidth: '360px', padding: '14px 16px' }}
+              initial={{ opacity: 0, y: -24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24 }}
             >
-              <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-                {uploadPreview.type.startsWith('image/') ? (
-                  <img
-                    src={uploadPreview.preview}
-                    alt="Preview"
-                    className="w-16 h-16 rounded object-cover"
-                  />
-                ) : uploadPreview.type.startsWith('video/') ? (
-                  <video
-                    src={uploadPreview.preview}
-                    className="w-16 h-16 rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-gray-700 rounded flex items-center justify-center">
-                    <File className="w-8 h-8 text-gray-400" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-200 truncate">
-                    {uploadPreview.name}
-                  </p>
-                  <p className="text-xs text-gray-500">Ready to send</p>
+              <div className="flex items-center gap-3 w-full">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0"
+                  style={{ background: 'hsl(var(--sv-accent)/0.15)', color: 'hsl(var(--sv-accent))' }}>
+                  {groupInvite.groupAvatar
+                    ? <img src={groupInvite.groupAvatar} className="w-full h-full object-cover rounded-xl" alt="" />
+                    : groupInvite.groupName?.[0]?.toUpperCase()
+                  }
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: 'hsl(var(--sv-text))' }}>Group Invite</p>
+                  <p className="text-xs truncate" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                    <span style={{ color: 'hsl(var(--sv-accent))' }}>{groupInvite.invitedBy?.name}</span> invited you to <strong>{groupInvite.groupName}</strong>
+                  </p>
+                </div>
+                <button onClick={() => setGroupInvite(null)} className="sv-icon-btn p-1 rounded-lg flex-shrink-0"><X size={13} /></button>
+              </div>
+              <div className="flex gap-2 w-full">
                 <button
-                  onClick={() => setUploadPreview(null)}
-                  className="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-300" />
+                  onClick={async () => { await respondGroupInvite(groupInvite.conversationId, false); }}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold border"
+                  style={{ borderColor: 'hsl(var(--sv-border))', color: 'hsl(var(--sv-text-2))' }}>
+                  Decline
+                </button>
+                <button
+                  onClick={async () => {
+                    const res = await respondGroupInvite(groupInvite.conversationId, true);
+                    if (res?.success && res?.data) {
+                      setSelectedConversation(res.data);
+                      setMobileShowSidebar(false);
+                    }
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background: 'hsl(var(--sv-accent))', color: 'white' }}>
+                  Join Group
                 </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Input Area */}
-        <div className="p-4 border-t border-gray-800 bg-[#111827]">
-          {showEmojiPicker && (
-            <div className="mb-3">
-              <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-            </div>
-          )}
-
-          <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={handleFileSelect}
-              accept="image/*,video/*,.pdf,.doc,.docx,audio/*"
+        {/* Mobile backdrop */}
+        <AnimatePresence>
+          {mobileShowSidebar && (
+            <motion.div
+              className="fixed inset-0 bg-black/60 z-[19] md:hidden"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setMobileShowSidebar(false)}
             />
+          )}
+        </AnimatePresence>
 
-            <motion.button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-              whileHover={{ scale: 1.1, rotate: 45 }}
-              whileTap={{ scale: 0.95 }}
+        <aside
+          className={`sv-sidebar z-20 transition-transform duration-300 ease-in-out
+          fixed md:relative inset-y-0 left-0 h-full md:h-auto
+          ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center gap-2 px-3 py-3 border-b flex-shrink-0" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+            <Avatar src={user?.avatar} name={user?.name} size={9} online />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate" style={{ color: 'hsl(var(--sv-text))' }}>{user?.name}</p>
+              <p className="text-xs truncate" style={{ color: 'hsl(var(--sv-text-2))' }}>{user?.email}</p>
+            </div>
+            {/* New chat */}
+            <button id="new-chat-btn" onClick={() => setShowNewChatModal(true)} title="New chat"
+              className="sv-icon-btn w-8 h-8 rounded-xl flex-shrink-0" style={{ background: 'hsl(var(--sv-accent)/0.12)', color: 'hsl(var(--sv-accent))' }}>
+              <Plus size={15} />
+            </button>
+            {/* Clipboard Sync */}
+            <button
+              id="clipboard-sync-btn"
+              onClick={() => { setShowClipboard(p => !p); setShowProfile(false); }}
+              title="Clipboard Sync"
+              className="sv-icon-btn w-8 h-8 rounded-xl flex-shrink-0"
+              style={showClipboard ? { background: 'hsl(var(--sv-accent)/0.12)', color: 'hsl(var(--sv-accent))' } : {}}
             >
-              <Paperclip className="w-5 h-5 text-gray-400" />
-            </motion.button>
-
-            {/* Attach Menu */}
-            <div className="relative">
-              <motion.button
-                type="button"
-                onClick={() => setShowAttachMenu(!showAttachMenu)}
-                className="w-10 h-10 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Plus className={`w-5 h-5 text-gray-400 transition-transform ${showAttachMenu ? 'rotate-45' : ''}`} />
-              </motion.button>
-
+              <Clipboard size={15} />
+            </button>
+            {/* Sidebar 3-dot menu */}
+            <div className="relative flex-shrink-0" ref={sidebarMenuRef}>
+              <button id="sidebar-menu-btn" onClick={() => setShowSidebarMenu(p => !p)}
+                className="sv-icon-btn w-8 h-8 rounded-xl">
+                <MoreVertical size={15} />
+              </button>
               <AnimatePresence>
-                {showAttachMenu && (
+                {showSidebarMenu && (
                   <motion.div
-                    className="absolute bottom-full left-0 mb-2 p-2 bg-gray-800 rounded-xl shadow-xl flex flex-col gap-1 border border-gray-700 min-w-[140px]"
-                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}
-                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
-                    >
-                      <BarChart2 className="w-4 h-4 text-purple-400" /> Poll
+                    className="sv-dropdown right-0 top-10"
+                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                    transition={{ duration: 0.15 }}>
+                    <button className="sv-dropdown-item" onClick={() => { setShowMyProfile(true); setShowSidebarMenu(false); }}>
+                      <Settings size={15} /> Profile & Settings
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}
-                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
-                    >
-                      <Code className="w-4 h-4 text-blue-400" /> Code
+                    <button className="sv-dropdown-item" onClick={() => { setShowNewChatModal(true); setShowSidebarMenu(false); }}>
+                      <MessageSquare size={15} /> New Chat
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}
-                      className="flex items-center gap-2 p-2 hover:bg-gray-700 rounded-lg text-sm text-gray-200"
-                    >
-                      <Clock className="w-4 h-4 text-yellow-400" /> Schedule
+                    <div className="my-1 h-px" style={{ background: 'hsl(var(--sv-border))' }} />
+                    <button className="sv-dropdown-item danger" onClick={handleLogout}>
+                      <LogOut size={15} /> Log Out
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
+          </div>
 
-            <div className="flex-1 relative">
+          {/* Search */}
+          <div className="px-3 py-3">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--sv-text-3))' }} />
               <input
                 type="text"
-                value={newMessage}
-                onChange={handleInputChange}
-                placeholder="Type a message..."
-                className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none transition-all pr-12 text-gray-200 placeholder-gray-500"
-                disabled={!selectedConversation}
+                placeholder="Search conversations…"
+                className="sv-input pl-8 py-2 text-sm"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 hover:scale-110 transition-transform"
-              >
-                <Smile className="w-5 h-5 text-gray-400 hover:text-gray-300" />
+            </div>
+          </div>
+
+          {/* Conversations */}
+          <div className="flex-1 overflow-y-auto scrollbar-custom px-2 pb-4">
+            {loading && filteredConversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'hsl(var(--sv-accent))' }} />
+                <p className="text-xs" style={{ color: 'hsl(var(--sv-text-3))' }}>Loading chats…</p>
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <MessageSquare size={32} style={{ color: 'hsl(var(--sv-text-3))' }} />
+                <p className="text-sm" style={{ color: 'hsl(var(--sv-text-3))' }}>No conversations yet</p>
+                <button onClick={() => setShowNewChatModal(true)} className="sv-btn-primary text-xs px-4 py-2">
+                  Start a chat
+                </button>
+              </div>
+            ) : (
+              filteredConversations.map((conv) => {
+                const isActive = selectedConversation?._id === conv._id;
+                const convName = getConversationName(conv);
+                const convAvatar = getConversationAvatar(conv);
+                const online = isUserOnline(conv);
+                const unread = conv.unreadCount?.[userId] || 0;
+                const lastMsg = conv.lastMessage;
+
+                return (
+                  <motion.div
+                    key={conv._id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { setSelectedConversation(conv); setMobileShowSidebar(false); }}
+                    className={`sv-conv-item mb-0.5 ${isActive ? "active" : ""}`}
+                  >
+                    <Avatar src={convAvatar} name={convName} size={11} online={online} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1.5 truncate pr-2">
+                          <span className="font-semibold text-sm truncate" style={{ color: 'hsl(var(--sv-text))' }}>{convName}</span>
+                          {conv.type === 'one-on-one' && (
+                            <Lock size={10} style={{ color: 'hsl(var(--sv-text-3))' }} title="End-to-end encrypted" />
+                          )}
+                        </div>
+                        <span className="text-xs flex-shrink-0" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                          {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
+                        </span>
+                      </div>
+                      {conv.type !== "group" && (
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[11px] flex items-center gap-1" style={{ color: online ? 'hsl(var(--sv-online))' : 'hsl(var(--sv-text-3))' }}>
+                            {online
+                              ? <><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'hsl(var(--sv-online))', display: 'inline-block', flexShrink: 0 }} />Online</>
+                              : fmtLastSeen(getLastSeen(conv))
+                            }
+                          </span>
+                          {unread > 0 && (
+                            <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0"
+                              style={{ background: 'hsl(var(--sv-accent))', color: 'white', minWidth: '18px', textAlign: 'center' }}>
+                              {unread > 99 ? "99+" : unread}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs truncate pr-2" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                          {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
+                        </p>
+                        {conv.type === "group" && unread > 0 && (
+                          <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5 flex-shrink-0"
+                            style={{ background: 'hsl(var(--sv-accent))', color: 'white', minWidth: '18px', textAlign: 'center' }}>
+                            {unread > 99 ? "99+" : unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        </aside>
+
+        {/* ═══════ MAIN CHAT AREA ═══════ */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <CallInterface />
+
+          {selectedConversation ? (
+            /* Chat column + profile/clipboard panels sit side by side */
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+
+              {/* ── Chat column ── */}
+              <div className="flex flex-col flex-1 min-w-0 min-h-0">
+
+                {/* Chat Header */}
+                <header className="flex items-center gap-2 px-3 md:px-4 py-3 border-b flex-shrink-0 z-10"
+                  style={{ background: 'hsl(var(--sv-surface))', borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                  {/* Mobile: back to sidebar */}
+                  <button className="md:hidden sv-icon-btn w-8 h-8 rounded-xl flex-shrink-0" onClick={() => setMobileShowSidebar(true)}>
+                    <ChevronDown size={18} className="rotate-90" />
+                  </button>
+
+                  <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer group">
+                    <Avatar
+                      src={getConversationAvatar(selectedConversation)}
+                      name={getConversationName(selectedConversation)}
+                      size={9}
+                      online={isUserOnline(selectedConversation)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm md:text-base truncate" style={{ color: 'hsl(var(--sv-text))' }}>
+                          {getConversationName(selectedConversation)}
+                        </h3>
+                        {selectedConversation.type === 'one-on-one' && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sv-online/10" title="End-to-end encrypted">
+                            <Lock size={10} className="text-sv-online" />
+                            <span className="text-[9px] font-bold text-sv-online uppercase tracking-tight">E2EE</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs flex items-center gap-1" style={{ color: 'hsl(var(--sv-text-3))', minHeight: '16px' }}>
+                        {isTyping ? (
+                          <span className="sv-header-typing-dots">
+                            {[0, 1, 2, 3].map(i => (
+                              <span key={i} className="sv-typing-dot" style={{ animationDelay: `${i * 0.16}s` }} />
+                            ))}
+                          </span>
+                        ) : selectedConversation.type === "group"
+                          ? `${selectedConversation.participants?.length || 0} members`
+                          : isUserOnline(selectedConversation) ? "online" : fmtLastSeen(getLastSeen(selectedConversation))
+                        }
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button id="voice-call-btn" title="Voice call" onClick={() => {
+                      const other = selectedConversation?.participants?.find(p => p._id !== userId);
+                      setActiveCall({ type: "voice", otherUser: other || selectedConversation });
+                    }} className="sv-icon-btn w-8 h-8 md:w-9 md:h-9 rounded-xl">
+                      <Phone size={16} />
+                    </button>
+                    <button id="video-call-btn" title="Video call" onClick={() => {
+                      const other = selectedConversation?.participants?.find(p => p._id !== userId);
+                      setActiveCall({ type: "video", otherUser: other || selectedConversation });
+                    }} className="sv-icon-btn w-8 h-8 md:w-9 md:h-9 rounded-xl">
+                      <Video size={16} />
+                    </button>
+
+                    {/* 3-dot menu */}
+                    <div className="relative" ref={moreMenuRef}>
+                      <button id="chat-more-btn" onClick={() => setShowMoreMenu(p => !p)}
+                        className="sv-icon-btn w-8 h-8 md:w-9 md:h-9 rounded-xl">
+                        <MoreVertical size={16} />
+                      </button>
+                      <AnimatePresence>
+                        {showMoreMenu && (
+                          <motion.div
+                            className="sv-dropdown right-0 top-10"
+                            initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                            transition={{ duration: 0.15 }}>
+                            <button className="sv-dropdown-item" onClick={() => { setShowProfile(p => !p); setShowMoreMenu(false); }}>
+                              <Users size={15} /> {showProfile ? "Hide Info" : "View Info"}
+                            </button>
+                            <button className="sv-dropdown-item" onClick={() => { setShowBgPicker(true); setShowMoreMenu(false); }}>
+                              <ImageIcon size={15} /> Change Background
+                            </button>
+                            {selectedConversation.type === "group" && (
+                              <button className="sv-dropdown-item" onClick={() => { setShowGroupInfoModal(true); setShowMoreMenu(false); }}>
+                                <Settings size={15} /> Group Settings
+                              </button>
+                            )}
+                            <div className="my-1 h-px" style={{ background: 'hsl(var(--sv-border))' }} />
+                            <button className="sv-dropdown-item danger" onClick={() => setShowMoreMenu(false)}>
+                              <Trash2 size={15} /> Clear Chat
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </header>
+
+                {/* Messages area */}
+                <div
+                  ref={messageContainerRef}
+                  onScroll={handleScroll}
+                  className={`flex-1 overflow-y-auto scrollbar-custom px-3 md:px-4 py-4 flex flex-col gap-1 ${currentBgCls}`}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center flex-1">
+                      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'hsl(var(--sv-accent))' }} />
+                    </div>
+                  ) : (
+                    messagesWithDates.map((item) => {
+                      if (item.type === "date") return (
+                        <div key={item.id} className="flex items-center justify-center my-3">
+                          <span className="text-xs px-3 py-1 rounded-full font-medium"
+                            style={{ background: 'hsl(var(--sv-surface-2))', color: 'hsl(var(--sv-text-3))', border: '1px solid hsl(var(--sv-border) / 0.5)' }}>
+                            {item.label}
+                          </span>
+                        </div>
+                      );
+                      return (
+                        <MessageItem
+                          key={item.id || item._id}
+                          message={item}
+                          isOwn={item.sender === "user"}
+                          onReply={setReplyToMessage}
+                          onReact={addReaction}
+                          userId={userId}
+                        />
+                      );
+                    })
+                  )}
+                  <AnimatePresence>
+                    {isTyping && <TypingIndicator />}
+                  </AnimatePresence>
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Scroll to bottom button */}
+                <AnimatePresence>
+                  {showScrollBottom && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+                      className="absolute bottom-24 right-4 md:right-6 w-10 h-10 rounded-full shadow-lg flex items-center justify-center z-10"
+                      style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))', color: 'hsl(var(--sv-accent))' }}>
+                      <ChevronDown size={18} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                {/* Reply preview */}
+                <AnimatePresence>
+                  {replyToMessage && (
+                    <motion.div
+                      initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
+                      className="flex items-center gap-3 px-3 md:px-4 py-2.5 border-t"
+                      style={{ background: 'hsl(var(--sv-surface))', borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                      <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: 'hsl(var(--sv-accent))' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold mb-0.5" style={{ color: 'hsl(var(--sv-accent))' }}>
+                          Replying to {replyToMessage.name || "you"}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: 'hsl(var(--sv-text-2))' }}>{replyToMessage.content}</p>
+                      </div>
+                      <button onClick={() => setReplyToMessage(null)} className="sv-icon-btn w-7 h-7 rounded-lg flex-shrink-0">
+                        <X size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Upload preview */}
+                <AnimatePresence>
+                  {uploadPreview && (
+                    <motion.div
+                      initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
+                      className="flex items-center gap-3 px-3 md:px-4 py-3 border-t"
+                      style={{ background: 'hsl(var(--sv-surface))', borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                      <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border" style={{ borderColor: 'hsl(var(--sv-border))' }}>
+                        {uploadPreview.type.startsWith("image/")
+                          ? <img src={uploadPreview.preview} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center" style={{ background: 'hsl(var(--sv-surface-2))' }}>
+                            <File size={20} style={{ color: 'hsl(var(--sv-accent))' }} />
+                          </div>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: 'hsl(var(--sv-text))' }}>{uploadPreview.name}</p>
+                        <p className="text-xs" style={{ color: 'hsl(var(--sv-text-3))' }}>Ready to send</p>
+                      </div>
+                      <button onClick={() => setUploadPreview(null)} className="sv-icon-btn w-8 h-8 rounded-xl"
+                        style={{ color: 'hsl(var(--sv-danger))' }}>
+                        <X size={16} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Message Input Footer */}
+                <footer className="flex items-center gap-2 px-3 md:px-4 py-3 border-t flex-shrink-0 sv-mobile-safe"
+                  style={{ background: 'hsl(var(--sv-surface))', borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+
+                  {/* Emoji */}
+                  <div className="relative flex-shrink-0">
+                    <button id="emoji-btn" onClick={() => setShowEmojiPicker(p => !p)}
+                      className={`sv-icon-btn w-9 h-9 rounded-xl`}
+                      style={showEmojiPicker ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
+                      <Smile size={18} />
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full mb-2 left-0 z-50">
+                        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                        <div className="fixed inset-0 -z-10" onClick={() => setShowEmojiPicker(false)} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Attach */}
+                  <div className="relative flex-shrink-0">
+                    <button id="attach-btn" onClick={() => setShowAttachMenu(p => !p)}
+                      className="sv-icon-btn w-9 h-9 rounded-xl"
+                      style={showAttachMenu ? { color: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-accent)/0.1)' } : {}}>
+                      <Plus size={18} />
+                    </button>
+                    <AnimatePresence>
+                      {showAttachMenu && (
+                        <motion.div
+                          className="sv-dropdown bottom-full mb-2 left-0"
+                          initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 8 }}
+                          transition={{ duration: 0.15 }}>
+                          <button className="sv-dropdown-item" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}>
+                            <ImageIcon size={15} style={{ color: '#3b82f6' }} /> Media &amp; Files
+                          </button>
+                          <button className="sv-dropdown-item" onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}>
+                            <Users size={15} style={{ color: '#f59e0b' }} /> Create Poll
+                          </button>
+                          <button className="sv-dropdown-item" onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}>
+                            <MessageSquare size={15} style={{ color: '#a78bfa' }} /> Code Block
+                          </button>
+                          <button className="sv-dropdown-item" onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}>
+                            <Settings size={15} style={{ color: '#6ee7b7' }} /> Schedule Message
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Text input */}
+                  <form onSubmit={handleSend} className="flex-1 flex items-center gap-2 min-w-0">
+                    <input
+                      id="message-input"
+                      type="text"
+                      value={newMessage}
+                      onChange={handleInputChange}
+                      placeholder={`Message ${getConversationName(selectedConversation)}…`}
+                      className="sv-input flex-1 py-2.5 text-sm min-w-0"
+                      autoComplete="off"
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) handleSend(e); }}
+                    />
+                    <button
+                      id="send-btn"
+                      type="submit"
+                      disabled={!newMessage.trim() && !uploadPreview}
+                      className="sv-btn-primary w-10 h-10 p-0 rounded-xl flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ minWidth: '40px' }}>
+                      <Send size={16} />
+                    </button>
+                  </form>
+
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
+                </footer>
+              </div>{/* end chat column */}
+
+              {/* ── Profile / Info Sidebar ── */}
+              <AnimatePresence>
+                {showProfile && (
+                  <>
+                    {/* Mobile backdrop */}
+                    <motion.div
+                      className="fixed inset-0 bg-black/60 z-[48] md:hidden"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      onClick={() => setShowProfile(false)}
+                    />
+                    <motion.aside
+                      className="fixed md:relative right-0 top-0 h-full z-[49] border-l overflow-y-auto scrollbar-custom md:flex-shrink-0"
+                      style={{
+                        width: 'min(85vw, 280px)',
+                        background: 'hsl(var(--sv-surface))',
+                        borderColor: 'hsl(var(--sv-border) / 0.5)',
+                      }}
+                      initial={{ x: '100%', opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      exit={{ x: '100%', opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                        <span className="font-semibold text-sm" style={{ color: 'hsl(var(--sv-text))' }}>
+                          {selectedConversation.type === "group" ? "Group Info" : "Contact Info"}
+                        </span>
+                        <button onClick={() => setShowProfile(false)} className="sv-icon-btn w-7 h-7 rounded-lg"><X size={14} /></button>
+                      </div>
+                      <div className="p-5 flex flex-col items-center gap-3 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                        <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={18} online={isUserOnline(selectedConversation)} />
+                        <div className="text-center">
+                          <p className="font-semibold" style={{ color: 'hsl(var(--sv-text))' }}>{getConversationName(selectedConversation)}</p>
+                          {selectedConversation.type !== "group" && (
+                            <p className="text-xs mt-0.5 flex items-center gap-1.5 justify-center" style={{ color: isUserOnline(selectedConversation) ? 'hsl(var(--sv-online))' : 'hsl(var(--sv-text-3))' }}>
+                              {isUserOnline(selectedConversation)
+                                ? <><span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--sv-online))', flexShrink: 0 }} />Online</>
+                                : fmtLastSeen(getLastSeen(selectedConversation))}
+                            </p>
+                          )}
+                          {selectedConversation.type === "group" && (
+                            <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                              {selectedConversation.participants?.length} members
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'hsl(var(--sv-text-3))' }}>Actions</p>
+                        <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowBgPicker(true); setShowProfile(false); }}>
+                          <ImageIcon size={15} /> Change Background
+                        </button>
+                        {selectedConversation.type === "group" && (
+                          <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowGroupInfoModal(true); setShowProfile(false); }}>
+                            <Settings size={15} /> Group Settings
+                          </button>
+                        )}
+                        <button className="sv-dropdown-item danger w-full rounded-xl">
+                          <Trash2 size={15} /> Clear Chat
+                        </button>
+                      </div>
+                    </motion.aside>
+                  </>
+                )}
+              </AnimatePresence>
+
+            </div>/* end flex-row wrapper */
+          ) : (
+            /* ── Empty state ── */
+            <div className={`flex-1 flex flex-col items-center justify-center text-center px-8 ${currentBgCls}`}>
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-2xl"
+                style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)/0.2), hsl(var(--sv-accent-2)/0.1))', border: '1px solid hsl(var(--sv-accent)/0.2)' }}>
+                <MessageSquare size={36} style={{ color: 'hsl(var(--sv-accent))' }} />
+              </motion.div>
+              <h2 className="text-xl font-bold mb-2" style={{ color: 'hsl(var(--sv-text))' }}>Welcome to Samvaad</h2>
+              <p className="text-sm max-w-xs leading-relaxed mb-6" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                Select a conversation from the sidebar or start a new chat to begin messaging.
+              </p>
+              <button id="empty-new-chat-btn" onClick={() => setShowNewChatModal(true)} className="sv-btn-primary">
+                <Plus size={16} /> New Conversation
               </button>
             </div>
+          )}
 
-            {newMessage.trim() || uploadPreview ? (
-              <motion.button
-                type="submit"
-                className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-shadow"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                disabled={!selectedConversation}
-              >
-                <Send className="w-5 h-5" />
-              </motion.button>
-            ) : (
-              <motion.button
-                type="button"
-                onClick={() => setIsRecording(!isRecording)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-all ${isRecording
-                    ? "bg-red-600 shadow-red-500/30 animate-pulse"
-                    : "bg-gradient-to-r from-purple-600 to-blue-600 shadow-purple-500/30"
-                  }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                disabled={!selectedConversation}
-              >
-                <Mic className="w-5 h-5 text-white" />
-              </motion.button>
+          {/* ── Clipboard Sync panel ── */}
+          <AnimatePresence>
+            {showClipboard && (
+              <>
+                {/* Mobile backdrop */}
+                <motion.div
+                  className="fixed inset-0 bg-black/60 z-[48] md:hidden"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setShowClipboard(false)}
+                />
+                <motion.aside
+                  className="fixed md:relative right-0 top-0 h-full z-[49] border-l overflow-hidden flex flex-col md:flex-shrink-0"
+                  style={{
+                    width: 'min(92vw, 300px)',
+                    background: 'hsl(var(--sv-surface))',
+                    borderColor: 'hsl(var(--sv-border) / 0.5)',
+                  }}
+                  initial={{ x: '100%', opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: '100%', opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                >
+                  <ClipboardSync onClose={() => setShowClipboard(false)} />
+                </motion.aside>
+              </>
             )}
-          </form>
-        </div>
+          </AnimatePresence>
+        </main>
+
+        {/* ═══ Background Picker Modal ═══ */}
+        <AnimatePresence>
+          {showBgPicker && (
+            <motion.div
+              className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+              style={{ background: 'rgba(0,0,0,0.6)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowBgPicker(false)}>
+              <motion.div
+                className="rounded-2xl p-5 w-full max-w-sm"
+                style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}
+                initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold" style={{ color: 'hsl(var(--sv-text))' }}>Chat Background</h3>
+                  <button onClick={() => setShowBgPicker(false)} className="sv-icon-btn w-8 h-8 rounded-xl"><X size={15} /></button>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {BG_OPTIONS.map((bg) => (
+                    <button
+                      key={bg.id}
+                      id={`bg-${bg.id}`}
+                      onClick={() => handleBgChange(bg.id)}
+                      className={`relative h-16 md:h-20 rounded-xl overflow-hidden transition-all ${bg.cls} ${chatBg === bg.id ? "" : "hover:opacity-90"}`}
+                      style={chatBg === bg.id ? { outline: `2px solid hsl(var(--sv-accent))`, outlineOffset: '2px' } : {}}>
+                      <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-medium"
+                        style={{ color: 'rgba(255,255,255,0.8)' }}>{bg.label}</span>
+                      {chatBg === bg.id && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.3)' }}>
+                          <Check size={18} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ═══ Modals ═══ */}
+        <NewChatModal isOpen={showNewChatModal} onClose={() => setShowNewChatModal(false)} onCreateChat={handleNewChat} token={token} />
+        <PollModal isOpen={showPollModal} onClose={() => setShowPollModal(false)} onSubmit={handleCreatePoll} />
+        <ScheduleModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} onSubmit={handleScheduleMessage} />
+        <CodeModal isOpen={showCodeModal} onClose={() => setShowCodeModal(false)} onSubmit={handleSendCode} />
+        <GroupInfoModal
+          isOpen={showGroupInfoModal}
+          onClose={() => setShowGroupInfoModal(false)}
+          conversation={selectedConversation}
+        />
+
+        <MyProfilePanel
+          isOpen={showMyProfile}
+          onClose={() => setShowMyProfile(false)}
+        />
       </div>
-
-      {/* Modals */}
-      <NewChatModal
-        isOpen={showNewChatModal}
-        onClose={() => setShowNewChatModal(false)}
-        onCreateChat={handleNewChat}
-        token={token}
-      />
-
-      <PollModal
-        isOpen={showPollModal}
-        onClose={() => setShowPollModal(false)}
-        onSubmit={handleCreatePoll}
-      />
-
-      <ScheduleModal
-        isOpen={showScheduleModal}
-        onClose={() => setShowScheduleModal(false)}
-        onSubmit={handleScheduleMessage}
-      />
-
-      <CodeModal
-        isOpen={showCodeModal}
-        onClose={() => setShowCodeModal(false)}
-        onSubmit={handleSendCode}
-      />
-
-      <GroupInfoModal
-        isOpen={showGroupInfoModal}
-        onClose={() => setShowGroupInfoModal(false)}
-        conversation={selectedConversation}
-      />
-    </div>
+    </ContactSyncGateway>
   );
 };
 

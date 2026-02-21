@@ -13,18 +13,24 @@ export const updateProfile = async (req, res) => {
       user.phone = req.body.phone || user.phone;
       user.bio = req.body.bio || user.bio;
 
+      // If base64 avatar is provided
+      if (req.body.avatar && req.body.avatar.startsWith('data:image')) {
+        try {
+          const result = await uploadToCloudinary(req.body.avatar, 'samvad/avatars');
+          if (result && result.secure_url) {
+            user.avatar = result.secure_url;
+          }
+        } catch (uploadError) {
+          console.error('Avatar upload failed, proceeding with other changes:', uploadError.message);
+          // We continue so name/bio changes still save even if upload fails
+        }
+      }
+
       const updatedUser = await user.save();
 
       res.json({
         success: true,
-        data: {
-          _id: updatedUser._id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          phone: updatedUser.phone,
-          avatar: updatedUser.avatar,
-          bio: updatedUser.bio,
-        },
+        data: updatedUser,
       });
     } else {
       res.status(404).json({
@@ -38,6 +44,28 @@ export const updateProfile = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// @desc    Update user settings
+// @route   PUT /api/users/settings
+// @access  Private
+export const updateSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (req.body.settings) {
+      user.settings = { ...user.settings, ...req.body.settings };
+    }
+
+    await user.save();
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -126,7 +154,11 @@ export const searchUsers = async (req, res) => {
       });
     }
 
-    const users = await User.find({
+    const user = await User.findById(req.user._id);
+    const syncEnabled = user?.settings?.syncContactsEnabled;
+    const syncedContacts = user?.contacts || [];
+
+    const query = {
       $and: [
         { _id: { $ne: req.user._id } },
         {
@@ -137,9 +169,29 @@ export const searchUsers = async (req, res) => {
           ],
         },
       ],
-    })
-    .select('name email phone avatar bio status lastSeen')
-    .limit(20);
+    };
+
+    // If sync is enabled, we strictly filter to only those in the synced contacts
+    if (syncEnabled) {
+      const contactEmails = syncedContacts.map(c => c.email).filter(Boolean);
+      const contactPhones = syncedContacts.map(c => c.tel).filter(Boolean);
+
+      if (contactEmails.length === 0 && contactPhones.length === 0) {
+        // If sync is enabled but no contacts are synced yet, return empty list
+        return res.json({ success: true, data: [] });
+      }
+
+      query.$and.push({
+        $or: [
+          { email: { $in: contactEmails } },
+          { phone: { $in: contactPhones } }
+        ]
+      });
+    }
+
+    const users = await User.find(query)
+      .select('name email phone avatar bio status lastSeen')
+      .limit(20);
 
     res.json({
       success: true,
@@ -157,9 +209,27 @@ export const searchUsers = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find({
-      _id: { $ne: req.user._id } // Exclude current user
-    }).select('name email avatar status');
+    const user = await User.findById(req.user._id);
+    const syncEnabled = user?.settings?.syncContactsEnabled;
+    const syncedContacts = user?.contacts || [];
+
+    const query = { _id: { $ne: req.user._id } };
+
+    if (syncEnabled) {
+      const contactEmails = syncedContacts.map(c => c.email).filter(Boolean);
+      const contactPhones = syncedContacts.map(c => c.tel).filter(Boolean);
+
+      if (contactEmails.length === 0 && contactPhones.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      query.$or = [
+        { email: { $in: contactEmails } },
+        { phone: { $in: contactPhones } }
+      ];
+    }
+
+    const users = await User.find(query).select('name email avatar status');
 
     res.json({
       success: true,
@@ -197,5 +267,36 @@ export const getUserById = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// @desc    Sync mobile contacts
+// @route   POST /api/users/sync-contacts
+// @access  Private
+export const syncContacts = async (req, res) => {
+  try {
+    const { contacts } = req.body;
+    if (!contacts || !Array.isArray(contacts)) {
+      return res.status(400).json({ success: false, message: 'Invalid contacts data' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update contacts list
+    user.contacts = contacts.map(c => ({
+      name: Array.isArray(c.name) ? c.name[0] : (c.name || ''),
+      email: Array.isArray(c.email) ? (c.email[0]?.address || c.email[0]) : (c.email || ''),
+      tel: Array.isArray(c.tel) ? c.tel[0] : (c.tel || ''),
+    }));
+
+    await user.save();
+
+    res.json({ success: true, message: 'Contacts synced successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

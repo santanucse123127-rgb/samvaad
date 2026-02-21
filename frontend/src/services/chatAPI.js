@@ -196,13 +196,49 @@ const api = {
   },
 
   async createGroupConversation(participantIds, name, token) {
-    const response = await fetch(`${API_URL}/conversations`, {
+    const response = await fetch(`${API_URL}/conversations/create`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ participantIds, name, type: 'group' })
+      body: JSON.stringify({ participants: participantIds, groupName: name, type: 'group' })
+    });
+    return response.json();
+  },
+
+  async updateGroupInfo(conversationId, data, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/group`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  async sendGroupInvite(conversationId, userId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/invite`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    return response.json();
+  },
+
+  async respondGroupInvite(conversationId, accept, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/invite/respond`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ accept })
     });
     return response.json();
   },
@@ -306,5 +342,8 @@ export const leaveGroup = api.leaveGroup;
 export const makeAdmin = api.makeAdmin;
 export const removeAdmin = api.removeAdmin;
 export const votePoll = api.votePoll;
+export const updateGroupInfo = api.updateGroupInfo;
+export const sendGroupInvite = api.sendGroupInvite;
+export const respondGroupInvite = api.respondGroupInvite;
 
 export default api;

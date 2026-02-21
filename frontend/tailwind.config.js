@@ -164,12 +164,21 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["Space Grotesk", "system-ui", "sans-serif"],
+        sans: ["Outfit", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        "wa-bg": "hsl(var(--wa-bg))",
+        "wa-header": "hsl(var(--wa-header))",
+        "wa-sidebar-hover": "hsl(var(--wa-sidebar-hover))",
+        "wa-bubble-own": "hsl(var(--wa-bubble-own))",
+        "wa-bubble-other": "hsl(var(--wa-bubble-other))",
+        "wa-text-primary": "hsl(var(--wa-text-primary))",
+        "wa-text-secondary": "hsl(var(--wa-text-secondary))",
+        "wa-accent": "hsl(var(--wa-accent))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
@@ -200,6 +209,14 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "wa-bg": "hsl(var(--wa-bg))",
+        "wa-header": "hsl(var(--wa-header))",
+        "wa-sidebar-hover": "hsl(var(--wa-sidebar-hover))",
+        "wa-bubble-own": "hsl(var(--wa-bubble-own))",
+        "wa-bubble-other": "hsl(var(--wa-bubble-other))",
+        "wa-text-primary": "hsl(var(--wa-text-primary))",
+        "wa-text-secondary": "hsl(var(--wa-text-secondary))",
+        "wa-accent": "hsl(var(--wa-accent))",
         glow: {
           primary: "hsl(var(--glow-primary))",
           accent: "hsl(var(--glow-accent))",

@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import compression from 'compression';
-import connectDB from './config/db.js';
+import { dbConnect } from './config/db.js';
 import { initializeSocket } from './socket/socketHandler.js';
 import Message from './models/Message.js';
 import Conversation from './models/Conversation.js';
@@ -16,8 +16,45 @@ import userRoutes from './routes/userRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import conversationRoutes from './routes/conversationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import clipboardRoutes from './routes/clipboardRoutes.js';
 
 dotenv.config();
+
+/* ── Global error safety net ──────────────────────────────────
+   MongoDB Atlas (and some TLS stacks on Windows) occasionally
+   emits MongoNetworkError / ECONNRESET when an idle connection
+   is dropped by the Atlas-side proxy. Mongoose automatically
+   reconnects, so we just log and continue instead of crashing.
+─────────────────────────────────────────────────────────── */
+process.on('uncaughtException', (err) => {
+  const isMongoNetwork =
+    err.name === 'MongoNetworkError' ||
+    err.name === 'MongoServerSelectionError' ||
+    err.code === 'ECONNRESET';
+
+  if (isMongoNetwork) {
+    console.warn('⚠️  MongoDB network error (auto-reconnect in progress):', err.message);
+    return; // Do NOT exit — Mongoose will reconnect on its own
+  }
+  // For every other uncaught exception, log and exit so nodemon restarts
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const isMongoNetwork =
+    reason instanceof Error &&
+    (reason.name === 'MongoNetworkError' ||
+      reason.name === 'MongoServerSelectionError' ||
+      reason.code === 'ECONNRESET');
+
+  if (isMongoNetwork) {
+    console.warn('⚠️  Unhandled Mongo rejection (auto-reconnect in progress):', reason.message);
+    return;
+  }
+  console.error('❌ Unhandled Rejection:', reason);
+});
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -47,8 +84,8 @@ const io = new socketIO(httpServer, {
   pingInterval: 25000,       // Send ping every 25 seconds
 });
 
-// Connect to MongoDB
-connectDB();
+dbConnect();
+
 
 // Middleware
 app.use(helmet());
@@ -77,6 +114,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/clipboard', clipboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

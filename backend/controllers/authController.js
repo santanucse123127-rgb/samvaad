@@ -6,7 +6,7 @@ import generateToken from '../utils/generateToken.js';
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password,avatar } = req.body;
+    const { name, email, password, phone, avatar } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -23,6 +23,7 @@ export const register = async (req, res) => {
       name,
       email,
       password,
+      phone,
       avatar
     });
 
@@ -30,11 +31,8 @@ export const register = async (req, res) => {
       res.status(201).json({
         success: true,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          avatar: user.avatar,
-          bio: user.bio,
+          ...user._doc,
+          password: BigInt(0), // Ensure password isn't there (though select: false should handle it)
           token: generateToken(user._id),
         },
       });
@@ -67,14 +65,8 @@ export const login = async (req, res) => {
       res.json({
         success: true,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          avatar: user.avatar,
-          bio: user.bio,
-          theme: user.theme,
-          darkMode: user.darkMode,
+          ...user._doc,
+          password: BigInt(0),
           token: generateToken(user._id),
         },
       });
@@ -119,7 +111,7 @@ export const getMe = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
     if (user) {
       user.status = 'offline';
       user.lastSeen = Date.now();

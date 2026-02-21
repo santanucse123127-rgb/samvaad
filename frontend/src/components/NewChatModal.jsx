@@ -13,6 +13,8 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
   const [groupName, setGroupName] = useState('');
 
   const { createGroupConversation } = useChat();
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +22,7 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
       setSelectedUsers([]);
       setGroupName('');
       setActiveTab('chat');
+      setCreateError('');
     }
   }, [isOpen]);
 
@@ -45,7 +48,7 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
   const handleUserClick = async (user) => {
     if (activeTab === 'chat') {
       try {
-        const result = await onCreateChat(user); // existing 1-on-1 logic
+        const result = await onCreateChat(user);
         if (result && result.success) {
           onClose();
         }
@@ -53,7 +56,6 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
         console.error('Error creating chat:', error);
       }
     } else {
-      // Toggle selection for group
       setSelectedUsers(prev => {
         const isSelected = prev.some(u => u._id === user._id);
         if (isSelected) {
@@ -66,20 +68,16 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
   };
 
   const handleCreateGroup = async () => {
-    if (!groupName.trim()) {
-      alert('Please enter a group name');
-      return;
-    }
-    if (selectedUsers.length < 2) {
-      alert('Please select at least 2 members');
-      return;
-    }
-
+    if (!groupName.trim() || selectedUsers.length < 2) return;
+    setCreating(true);
+    setCreateError('');
     const participantIds = selectedUsers.map(u => u._id);
-    const result = await createGroupConversation(participantIds, groupName);
-
+    const result = await createGroupConversation(participantIds, groupName.trim());
+    setCreating(false);
     if (result.success) {
       onClose();
+    } else {
+      setCreateError(result.error || 'Failed to create group. Please try again.');
     }
   };
 
@@ -87,155 +85,149 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat, token }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
         <motion.div
-          className="bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-card border border-border/50 rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
         >
           {/* Header */}
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-900/20 to-blue-900/20">
-            <h2 className="text-xl font-bold text-white">
+          <div className="p-5 border-b border-border/50 flex items-center justify-between bg-wa-accent/5 flex-shrink-0">
+            <h2 className="text-xl font-bold text-wa-text-primary">
               New Conversation
             </h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
+              className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors text-wa-text-secondary"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-800">
+          <div className="flex border-b border-border/20 p-1 bg-muted/30">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === 'chat' ? 'text-purple-400' : 'text-gray-400 hover:text-gray-200'
-                }`}
+              className={`flex-1 py-3 text-sm font-bold transition-all relative rounded-2xl ${activeTab === 'chat' ? 'text-wa-accent bg-card shadow-sm' : 'text-wa-text-secondary hover:text-wa-text-primary'}`}
             >
               <span className="flex items-center justify-center gap-2">
-                <User className="w-4 h-4" /> Direct Message
+                <User className="w-4 h-4" /> Message
               </span>
-              {activeTab === 'chat' && (
-                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" layoutId="underline" />
-              )}
             </button>
             <button
               onClick={() => setActiveTab('group')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === 'group' ? 'text-purple-400' : 'text-gray-400 hover:text-gray-200'
-                }`}
+              className={`flex-1 py-3 text-sm font-bold transition-all relative rounded-2xl ${activeTab === 'group' ? 'text-wa-accent bg-card shadow-sm' : 'text-wa-text-secondary hover:text-wa-text-primary'}`}
             >
               <span className="flex items-center justify-center gap-2">
-                <Users className="w-4 h-4" /> New Group
+                <Users className="w-4 h-4" /> Group
               </span>
-              {activeTab === 'group' && (
-                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" layoutId="underline" />
-              )}
             </button>
           </div>
 
-          {/* Group Name Input */}
-          {activeTab === 'group' && (
-            <div className="p-4 border-b border-gray-800 animated-fade-in">
-              <input
-                type="text"
-                placeholder="Group Name"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
-              />
-            </div>
-          )}
-
-          {/* Search */}
-          <div className="p-4 border-b border-gray-800">
+          {/* Search & Group Input Container */}
+          <div className="p-4 space-y-3 bg-muted/10 border-b border-border/50">
+            {activeTab === 'group' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                className="overflow-hidden"
+              >
+                <input
+                  type="text"
+                  placeholder="Group Name"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="w-full px-5 py-3 rounded-2xl bg-card border border-border/50 focus:border-wa-accent focus:ring-1 focus:ring-wa-accent/20 outline-none transition-all font-medium"
+                />
+              </motion.div>
+            )}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary" />
               <input
                 type="text"
                 placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none text-white placeholder-gray-500 text-sm"
+                className="w-full pl-11 pr-5 py-3 rounded-2xl bg-card border border-border/50 focus:border-wa-accent focus:ring-1 focus:ring-wa-accent/20 outline-none transition-all font-medium text-sm"
               />
             </div>
           </div>
 
           {/* Users List */}
-          <div className="flex-1 overflow-y-auto min-h-[300px]">
+          <div className="flex-1 overflow-y-auto min-h-[300px] scrollbar-custom">
             {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+              <div className="flex justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-wa-accent border-t-transparent" />
               </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-20 text-wa-text-secondary font-medium">
                 No users found
               </div>
             ) : (
-              filteredUsers.map((user) => {
-                const isSelected = selectedUsers.some(u => u._id === user._id);
-                return (
-                  <motion.button
-                    key={user._id}
-                    onClick={() => handleUserClick(user)}
-                    className={`w-full p-3 flex items-center gap-3 hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0 ${isSelected && activeTab === 'group' ? 'bg-purple-900/20' : ''
-                      }`}
-                  >
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                        {user.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-sm font-semibold text-white">
-                            {user.name.charAt(0).toUpperCase()}
-                          </span>
+              <div className="py-2">
+                {filteredUsers.map((user) => {
+                  const isSelected = selectedUsers.some(u => u._id === user._id);
+                  return (
+                    <motion.button
+                      key={user._id}
+                      onClick={() => handleUserClick(user)}
+                      className={`w-full p-3 flex items-center gap-3 hover:bg-wa-sidebar-hover transition-all px-6 ${isSelected && activeTab === 'group' ? 'bg-wa-accent/5' : ''}`}
+                    >
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-wa-accent/10 flex items-center justify-center overflow-hidden border">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="font-bold text-wa-accent">{user.name[0]}</span>
+                          )}
+                        </div>
+                        {activeTab === 'group' && isSelected && (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-wa-accent rounded-full flex items-center justify-center border-2 border-card">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
                         )}
                       </div>
-                      {activeTab === 'group' && isSelected && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center border-2 border-gray-900">
-                          <Check className="w-2 h-2 text-white" />
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="flex-1 text-left">
-                      <h3 className="font-medium text-gray-200">
-                        {user.name}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {user.email}
-                      </p>
-                    </div>
-                  </motion.button>
-                );
-              })
+                      <div className="flex-1 text-left">
+                        <h3 className="font-bold text-wa-text-primary text-[15px]">{user.name}</h3>
+                        <p className="text-[13px] text-wa-text-secondary">{user.email}</p>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
           {/* Footer for Group */}
           {activeTab === 'group' && (
-            <div className="p-4 border-t border-gray-800 bg-gray-900">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-400">
+            <motion.div
+              className="p-5 border-t border-border/50 bg-card"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+            >
+              <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-sm font-bold text-wa-text-primary">
                   {selectedUsers.length} selected
                 </span>
-                <span className="text-xs text-gray-500">
-                  (Min 2)
+                <span className="text-xs font-bold text-wa-text-secondary uppercase">
+                  Min 2 members
                 </span>
               </div>
+              {createError && (
+                <p className="text-xs text-red-400 text-center mb-3 px-1">{createError}</p>
+              )}
               <button
                 onClick={handleCreateGroup}
-                disabled={selectedUsers.length < 2 || !groupName.trim()}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={selectedUsers.length < 2 || !groupName.trim() || creating}
+                className="w-full py-4 rounded-2xl bg-wa-accent text-white font-bold text-lg shadow-xl shadow-wa-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Create Group
+                {creating ? (
+                  <><div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" /> Creating &amp; sending invites…</>
+                ) : 'Create Group'}
               </button>
-            </div>
+            </motion.div>
           )}
         </motion.div>
       </div>

@@ -46,11 +46,13 @@ export const initializeSocket = (io) => {
       activeUsers.set(socket.userId, socket.id);
 
       // Notify all contacts that user is online
-      const user = await User.findById(socket.userId);
+      const user = socket.user; // populated in middleware
+      const shouldShowLastSeen = user.settings?.lastSeenVisibility !== 'nobody';
+
       socket.broadcast.emit('user-status-changed', {
         userId: socket.userId,
         status: 'online',
-        lastSeen: Date.now(),
+        lastSeen: shouldShowLastSeen ? Date.now() : null,
       });
 
       // User setup - join their personal room
@@ -80,7 +82,7 @@ export const initializeSocket = (io) => {
 
         for (const message of messages) {
           await message.markAsDelivered(socket.userId);
-          
+
           // Notify sender about delivery
           io.to(message.sender.toString()).emit('message-status-updated', {
             messageId: message._id,
@@ -119,7 +121,7 @@ export const initializeSocket = (io) => {
           const message = await Message.findById(messageId);
           if (message) {
             await message.addReaction(socket.userId, emoji);
-            
+
             // Notify all conversation participants
             io.to(message.conversationId.toString()).emit("reaction-added", {
               messageId,
@@ -138,7 +140,7 @@ export const initializeSocket = (io) => {
           const message = await Message.findById(messageId);
           if (message) {
             await message.removeReaction(socket.userId);
-            
+
             io.to(message.conversationId.toString()).emit("reaction-removed", {
               messageId,
               userId: socket.userId,
@@ -253,16 +255,19 @@ export const initializeSocket = (io) => {
             sender: { $ne: socket.userId },
           });
 
+          const user = await User.findById(socket.userId);
           for (const message of messages) {
             if (!message.readBy.some(r => r.userId.toString() === socket.userId)) {
               await message.markAsRead(socket.userId);
 
-              // Notify sender
-              io.to(message.sender.toString()).emit("message-read", {
-                messageId: message._id,
-                readBy: socket.userId,
-                readAt: Date.now(),
-              });
+              // Notify sender ONLY if current user has read receipts enabled
+              if (user.settings?.readReceipts !== false) {
+                io.to(message.sender.toString()).emit("message-read", {
+                  messageId: message._id,
+                  readBy: socket.userId,
+                  readAt: Date.now(),
+                });
+              }
             }
           }
 
@@ -291,6 +296,19 @@ export const initializeSocket = (io) => {
         });
       });
 
+      // ─── Clipboard Sync ────────────────────────────────────────────
+      // Client emits this to instantly broadcast a clipboard item to all
+      // of the same user's OTHER connected sessions without a round-trip
+      // through the REST API. The REST route still handles persistence.
+      socket.on("clipboard:push", (payload) => {
+        // Emit to the user's personal room EXCEPT the sender socket
+        socket.to(socket.userId).emit("clipboard:new-item", {
+          ...payload,
+          fromSocket: true, // flag: already persisted by the REST call
+        });
+        console.log(`📋 Clipboard push from user ${socket.userId}: type=${payload.type}`);
+      });
+
       // Handle disconnect
       socket.on("disconnect", async () => {
         console.log(`❌ User disconnected: ${socket.userId}`);
@@ -306,10 +324,13 @@ export const initializeSocket = (io) => {
         });
 
         // Broadcast offline status
+        const currentUser = await User.findById(socket.userId);
+        const shouldShowLS = currentUser?.settings?.lastSeenVisibility !== 'nobody';
+
         socket.broadcast.emit('user-status-changed', {
           userId: socket.userId,
           status: 'offline',
-          lastSeen: Date.now(),
+          lastSeen: shouldShowLS ? Date.now() : null,
         });
       });
 

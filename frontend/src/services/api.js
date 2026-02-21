@@ -28,11 +28,13 @@ export const authAPI = {
 export const userAPI = {
   updateProfile: (data) => API.put('/users/profile', data),
   updateTheme: (data) => API.put('/users/theme', data),
+  updateSettings: (data) => API.put('/users/settings', data),
   uploadAvatar: (formData) => API.post('/users/upload-avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   searchUsers: (query) => API.get(`/users/search?q=${query}`),
   getUserById: (id) => API.get(`/users/${id}`),
+  syncContacts: (contacts) => API.post('/users/sync-contacts', { contacts }),
 };
 
 // Contact APIs
@@ -55,7 +57,7 @@ export const conversationAPI = {
 
 // Message APIs
 export const messageAPI = {
-  getMessages: (conversationId, page = 1) => 
+  getMessages: (conversationId, page = 1) =>
     API.get(`/messages/${conversationId}?page=${page}`),
   sendMessage: (data) => API.post('/messages/send', data),
   uploadMedia: (formData) => API.post('/messages/upload-media', formData, {

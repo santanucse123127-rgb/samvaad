@@ -34,7 +34,7 @@ export const getMessages = async (req, res) => {
       ],
       deletedForEveryone: false,
     })
-      .populate("sender", "name avatar status lastSeen")
+      .populate("sender", "name avatar status lastSeen settings")
       .populate({
         path: "replyTo",
         select: "content sender type mediaUrl",
@@ -90,7 +90,8 @@ export const sendMessage = async (req, res) => {
       pollOptions,
       allowMultipleAnswers,
       scheduledAt,
-      codeLanguage
+      codeLanguage,
+      isEncrypted
     } = req.body;
 
     const conversation = await Conversation.findOne({
@@ -114,6 +115,7 @@ export const sendMessage = async (req, res) => {
       replyTo: replyTo || null,
       mentions: mentions || [],
       status: 'sent',
+      isEncrypted: isEncrypted || false,
     };
 
     // Handle Polls

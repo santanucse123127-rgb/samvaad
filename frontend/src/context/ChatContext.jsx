@@ -8,6 +8,7 @@ import {
 } from "react";
 import socketService from "../services/socket";
 import api from "../services/chatAPI";
+import { deriveSharedSecret, encryptMessage, decryptMessage } from "../utils/crypto";
 
 const ChatContext = createContext();
 
@@ -25,147 +26,199 @@ export const ChatProvider = ({ children, token, userId }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+  // onlineUsers: { [userId]: { online: boolean, lastSeen: Date|null } }
   const [onlineUsers, setOnlineUsers] = useState({});
   const [recordingVoice, setRecordingVoice] = useState({});
-  const selectedConversationRef = useRef(null);
+  const [notification, setNotification] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
+  const [groupInvite, setGroupInvite] = useState(null); // pending group invite
+  const [conversationWallpapers, setConversationWallpapers] = useState(() => {
+    const saved = localStorage.getItem("conversationWallpapers");
+    return saved ? JSON.parse(saved) : {};
+  });
 
+  const selectedConversationRef = useRef(null);
   const prevConversationRef = useRef(null);
   const messagesCache = useRef({});
-  console.log("Sel convo : ", selectedConversation);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
+  const sharedKeys = useRef({}); // { otherParticipantId: cryptoKey }
 
-  console.log("🎯 ChatContext initialized");
-
-  // Initialize socket and fetch initial data
-  useEffect(() => {
-    if (token && userId) {
-      console.log("🚀 Initializing chat...");
-      socketService.connect(token);
-      socketService.emit("setup", userId);
-      fetchConversations();
+  // Helper: Play Notification Sound
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audio = new Audio("/notification.mp3");
+      audio.play().catch((e) => console.log("Could not play sound:", e));
+    } catch (e) {
+      console.log("Notification sound error:", e);
     }
-
-    return () => {
-      console.log("🧹 Cleaning up...");
-      socketService.removeAllListeners();
-      socketService.disconnect();
-    };
-  }, [token, userId]);
-
-  useEffect(() => {
-    if (!token || !userId) return;
-
-    setupSocketListeners();
-
-    return () => {
-      socketService.removeAllListeners();
-    };
   }, []);
 
-  useEffect(() => {
-    selectedConversationRef.current = selectedConversation;
-  }, [selectedConversation]);
+  // Helper: Show Browser Notification
+  const showNotification = useCallback((message) => {
+    if (!("Notification" in window)) return;
 
-  // Handle conversation selection
-  useEffect(() => {
-    if (!selectedConversation) return;
+    if (Notification.permission === "granted") {
+      const notification = new Notification(`New message from ${message.sender.name}`, {
+        body: message.content,
+        icon: message.sender.avatar || "/logo.png",
+      });
 
-    // Leave previous room
-    if (prevConversationRef.current) {
-      socketService.leaveConversation(prevConversationRef.current);
+      notification.onclick = () => {
+        window.focus();
+        // You could also set the selected conversation here if you have access to it
+      };
     }
+  }, []);
 
-    // Join new room
-    socketService.joinConversation(selectedConversation._id);
-    prevConversationRef.current = selectedConversation._id;
-
-    // Fetch messages (with caching)
-    if (messagesCache.current[selectedConversation._id]) {
-      setMessages(messagesCache.current[selectedConversation._id]);
-    } else {
-      fetchMessages(selectedConversation._id);
-    }
-
-    // Mark messages as read
-    socketService.emit("mark-messages-read", {
-      conversationId: selectedConversation._id,
+  // Helper: Update Conversations List
+  const updateConversationsList = useCallback((message) => {
+    setConversations((prev) => {
+      const currentConv = selectedConversationRef.current;
+      const updated = prev.map((conv) => {
+        if (conv._id === message.conversationId) {
+          const isBackground = !currentConv || currentConv._id !== message.conversationId;
+          return {
+            ...conv,
+            lastMessage: message,
+            updatedAt: new Date(),
+            unreadCount: isBackground
+              ? { ...(conv.unreadCount || {}), [userId]: (conv.unreadCount?.[userId] || 0) + 1 }
+              : conv.unreadCount
+          };
+        }
+        return conv;
+      });
+      return updated.sort(
+        (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+      );
     });
-  }, [selectedConversation]);
+  }, [userId]);
 
+  // Helper: Transform Message
+  const transformMessage = useCallback(
+    (msg) => {
+      return {
+        id: msg._id,
+        content: msg.content || "",
+        sender: msg.sender._id === userId ? "user" : "other",
+        timestamp: new Date(msg.createdAt),
+        name: msg.sender.name,
+        avatar: msg.sender.avatar,
+        type: msg.type,
+        mediaUrl: msg.mediaUrl,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        duration: msg.duration,
+        status: msg.status,
+        deleted: msg.deleted || msg.deletedForEveryone,
+        edited: msg.edited,
+        editedAt: msg.editedAt,
+        reactions: msg.reactions || [],
+        replyTo: msg.replyTo,
+        forwarded: msg.forwarded,
+        isEncrypted: msg.isEncrypted,
+      };
+    },
+    [userId],
+  );
+
+  const decryptMessageContent = useCallback(async (msg, conv) => {
+    if (!msg.isEncrypted || !msg.content || !conv || conv.type !== 'one-on-one') return msg.content;
+
+    const otherParticipant = conv.participants?.find(p => p._id !== userId);
+    if (!otherParticipant || !otherParticipant.settings?.publicKey) {
+      // Fallback: search for the sender's public key if it's not the current user
+      const sender = typeof msg.sender === 'object' ? msg.sender : { _id: msg.sender };
+      if (sender._id === userId) {
+        // Find whoever the OTHER person is in this private chat
+        const recipient = conv.participants?.find(p => p._id !== userId);
+        if (!recipient?.settings?.publicKey) return msg.content;
+      }
+    }
+
+    const partner = conv.participants?.find(p => p._id !== userId);
+    if (!partner?.settings?.publicKey) return msg.content;
+
+    try {
+      let sharedKey = sharedKeys.current[partner._id];
+      if (!sharedKey) {
+        const otherPubKeyJwk = JSON.parse(partner.settings.publicKey);
+        sharedKey = await deriveSharedSecret(otherPubKeyJwk);
+        sharedKeys.current[partner._id] = sharedKey;
+      }
+
+      const encryptedData = JSON.parse(msg.content);
+      return await decryptMessage(encryptedData, sharedKey);
+    } catch (err) {
+      return "[Unable to decrypt]";
+    }
+  }, [userId]);
+
+  // Socket Listener Setup
   const setupSocketListeners = useCallback(() => {
     console.log("🎧 Setting up socket listeners...");
 
-    // New message received
-    // socketService.on("message-received", (message) => {
-    //   console.log("📩 Message received:", message);
+    socketService.on("message-received", async (message) => {
+      const convId = message.conversationId;
+      const currentConv = selectedConversationRef.current;
 
-    //   const transformedMessage = transformMessage(message);
+      // Decrypt if necessary
+      if (message.isEncrypted && (currentConv?._id === convId || conversations.find(c => c._id === convId))) {
+        const targetConv = currentConv?._id === convId ? currentConv : conversations.find(c => c._id === convId);
+        message.content = await decryptMessageContent(message, targetConv);
+      }
 
-    //   // Update messages if in current conversation
-    //   if (
-    //     selectedConversation &&
-    //     message.conversationId === selectedConversation._id
-    //   ) {
-    //     // setMessages((prev) => {
-    //     //   const updated = [...prev, transformedMessage];
-    //     //   messagesCache.current[selectedConversation._id] = updated;
-    //     //   return updated;
-    //     // });
-
-    //     setMessages((prev) => {
-    //       // 🔥 remove temp messages
-    //       const filtered = prev.filter((m) => !m.id.startsWith("temp-"));
-    //       const updated = [...filtered, transformedMessage];
-    //       messagesCache.current[selectedConversation._id] = updated;
-    //       return updated;
-    //     });
-
-    //     // Auto-mark as read if conversation is open
-    //     if (token) {
-    //       setTimeout(() => {
-    //         api.markAsRead(message._id, token).catch(console.error);
-    //       }, 500);
-    //     }
-    //   }
-
-    //   // Update conversations list
-    //   updateConversationsList(message);
-
-    //   // Play notification sound if not in conversation
-    //   if (
-    //     !selectedConversation ||
-    //     message.conversationId !== selectedConversation._id
-    //   ) {
-    //     playNotificationSound();
-    //   }
-    // });
-
-    socketService.on("message-received", (message) => {
       const transformedMessage = transformMessage(message);
 
-      // ALWAYS cache per conversation
-      const convId = message.conversationId;
-      const cached = messagesCache.current[convId] || [];
-      messagesCache.current[convId] = [...cached, transformedMessage];
+      const updateMessages = (prev) => {
+        // Look for matching temp message (sending status, same content, same sender)
+        const tempIndex = prev.findIndex(m =>
+          m.status === 'sending' &&
+          m.content === transformedMessage.content &&
+          m.sender === 'user'
+        );
 
-      const currentConv = selectedConversationRef.current;
+        if (tempIndex !== -1) {
+          const updated = [...prev];
+          updated[tempIndex] = transformedMessage;
+          return updated;
+        }
+
+        // Avoid adding if ID already exists (e.g. from API response race)
+        if (prev.some(m => m.id === transformedMessage.id)) return prev;
+
+        return [...prev, transformedMessage];
+      };
+
+      // Update Cache
+      messagesCache.current[convId] = updateMessages(messagesCache.current[convId] || []);
 
       // Only update UI if this conversation is open
       if (currentConv && currentConv._id === convId) {
         setMessages(messagesCache.current[convId]);
+
+        // Auto-mark as read if conversation is open
+        if (transformedMessage.sender !== 'user') {
+          socketService.emit("mark-messages-read", {
+            conversationId: convId,
+          });
+        }
       }
 
       updateConversationsList(message);
 
       // Notification for background chats
-      if (!currentConv || currentConv._id !== convId) {
+      if (!currentConv || currentConv._id !== convId || document.hidden) {
         playNotificationSound();
+        showNotification(message);
+        setNotification(message);
+        setTimeout(() => setNotification(null), 5000);
       }
     });
 
-
-    // Typing indicators
     socketService.on("user-typing", ({ userId, conversationId, userName }) => {
-      console.log("⌨️ User typing:", userName);
       setTypingUsers((prev) => ({
         ...prev,
         [conversationId]: { userId, userName },
@@ -173,7 +226,6 @@ export const ChatProvider = ({ children, token, userId }) => {
     });
 
     socketService.on("user-stopped-typing", ({ conversationId }) => {
-      console.log("⌨️ User stopped typing");
       setTypingUsers((prev) => {
         const updated = { ...prev };
         delete updated[conversationId];
@@ -181,7 +233,6 @@ export const ChatProvider = ({ children, token, userId }) => {
       });
     });
 
-    // Voice recording indicators
     socketService.on("user-recording-voice", ({ userId, conversationId }) => {
       setRecordingVoice((prev) => ({ ...prev, [conversationId]: userId }));
     });
@@ -194,7 +245,6 @@ export const ChatProvider = ({ children, token, userId }) => {
       });
     });
 
-    // Message status updates
     socketService.on("message-status-updated", ({ messageId, status }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === messageId ? { ...msg, status } : msg)),
@@ -202,7 +252,6 @@ export const ChatProvider = ({ children, token, userId }) => {
     });
 
     socketService.on("message-read", ({ messageId, readBy, readAt }) => {
-      console.log("✓ Message read:", messageId);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === messageId ? { ...msg, status: "read", readAt } : msg,
@@ -210,23 +259,17 @@ export const ChatProvider = ({ children, token, userId }) => {
       );
     });
 
-    // Message editing
-    socketService.on(
-      "message-edited",
-      ({ messageId, newContent, editedAt }) => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === messageId
-              ? { ...msg, content: newContent, edited: true, editedAt }
-              : msg,
-          ),
-        );
-      },
-    );
+    socketService.on("message-edited", ({ messageId, newContent, editedAt }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: newContent, edited: true, editedAt }
+            : msg,
+        ),
+      );
+    });
 
-    // Message deletion
     socketService.on("message-deleted", ({ messageId, deleteFor }) => {
-      console.log("🗑️ Message deleted:", messageId);
       if (deleteFor === "everyone") {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -240,7 +283,19 @@ export const ChatProvider = ({ children, token, userId }) => {
       }
     });
 
-    // Reactions
+    socketService.on("poll-updated", ({ messageId, pollOptions }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, pollOptions } : msg
+        )
+      );
+    });
+
+    socketService.on("mentioned-in-message", ({ messageId, conversationId, sender }) => {
+      // Optional: Highlight message or show specific mention toast
+      console.log("You were mentioned!", messageId);
+    });
+
     socketService.on("reaction-added", ({ messageId, userId, emoji }) => {
       setMessages((prev) =>
         prev.map((msg) => {
@@ -275,82 +330,177 @@ export const ChatProvider = ({ children, token, userId }) => {
       );
     });
 
-    // User status changes
-    socketService.on(
-      "user-status-changed",
-      ({ userId: changedUserId, status, lastSeen }) => {
-        console.log("🟢 User status changed:", changedUserId, status);
-        setOnlineUsers((prev) => ({
-          ...prev,
-          [changedUserId]: status === "online",
-        }));
+    socketService.on("user-status-changed", ({ userId: changedUserId, status, lastSeen }) => {
+      const isOnline = status === "online";
+      const seenAt = lastSeen ? new Date(lastSeen) : new Date();
 
-        // Update conversations list
-        setConversations((prev) =>
-          prev.map((conv) => {
-            const participant = conv.participants?.find(
-              (p) => p._id === changedUserId,
-            );
-            if (participant) {
-              return {
-                ...conv,
-                participants: conv.participants.map((p) =>
-                  p._id === changedUserId ? { ...p, status, lastSeen } : p,
-                ),
-              };
-            }
-            return conv;
-          }),
-        );
-      },
-    );
+      // Update real-time online status map with BOTH online flag and lastSeen
+      setOnlineUsers((prev) => ({
+        ...prev,
+        [changedUserId]: { online: isOnline, lastSeen: seenAt },
+      }));
+
+      setConversations((prev) =>
+        prev.map((conv) => {
+          const participant = conv.participants?.find(
+            (p) => p._id === changedUserId,
+          );
+          if (participant) {
+            return {
+              ...conv,
+              participants: conv.participants.map((p) =>
+                p._id === changedUserId ? { ...p, status, lastSeen: seenAt } : p,
+              ),
+            };
+          }
+          return conv;
+        }),
+      );
+
+      // Update selected conversation if it matches
+      setSelectedConversation(prev => {
+        if (prev && prev.participants?.some(p => p._id === changedUserId)) {
+          return {
+            ...prev,
+            participants: prev.participants.map(p =>
+              p._id === changedUserId ? { ...p, status, lastSeen: seenAt } : p
+            )
+          };
+        }
+        return prev;
+      });
+    });
+
+    socketService.on("incoming-call", (callData) => {
+      setIncomingCall(callData);
+      playNotificationSound();
+    });
+
+    // Group invite received
+    socketService.on("group-invite", (inviteData) => {
+      setGroupInvite(inviteData);
+      playNotificationSound();
+    });
+
+    // User accepted invite → add group to their sidebar
+    socketService.on("joined-group", ({ conversation }) => {
+      setConversations((prev) => {
+        if (prev.some((c) => c._id === conversation._id)) return prev;
+        return [conversation, ...prev];
+      });
+    });
+
+    // Group info was updated by admin
+    socketService.on("group-updated", ({ conversationId, groupName, groupAvatar, groupDescription }) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c._id === conversationId
+            ? { ...c, groupName, groupAvatar, groupDescription }
+            : c
+        )
+      );
+      setSelectedConversation((prev) =>
+        prev && prev._id === conversationId
+          ? { ...prev, groupName, groupAvatar, groupDescription }
+          : prev
+      );
+    });
+
+    // A new member joined the group
+    socketService.on("member-joined", ({ conversation }) => {
+      setConversations((prev) =>
+        prev.map((c) => (c._id === conversation._id ? conversation : c))
+      );
+      setSelectedConversation((prev) =>
+        prev && prev._id === conversation._id ? conversation : prev
+      );
+    });
+
+    // NOTE: call-ended and call-rejected are handled inside CallInterface
+    // to avoid conflicting state resets that would close the active call screen.
+  }, [transformMessage, updateConversationsList, playNotificationSound]);
+
+  // Effect: Sync Refs
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
+  // Effect: Request Notification Permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, []);
 
-  const transformMessage = useCallback(
-    (msg) => {
-      return {
-        id: msg._id,
-        content: msg.content || "",
-        sender: msg.sender._id === userId ? "user" : "other",
-        timestamp: new Date(msg.createdAt),
-        name: msg.sender.name,
-        avatar: msg.sender.avatar,
-        type: msg.type,
-        mediaUrl: msg.mediaUrl,
-        fileName: msg.fileName,
-        fileSize: msg.fileSize,
-        duration: msg.duration,
-        status: msg.status,
-        deleted: msg.deleted || msg.deletedForEveryone,
-        edited: msg.edited,
-        editedAt: msg.editedAt,
-        reactions: msg.reactions || [],
-        replyTo: msg.replyTo,
-        forwarded: msg.forwarded,
-      };
-    },
-    [userId],
-  );
+  // Effect: Connect Socket
+  useEffect(() => {
+    if (token && userId) {
+      console.log("🚀 Initializing socket connection...");
+      socketService.connect(token);
+      socketService.emit("setup", userId);
+      fetchConversations();
+    }
 
+    return () => {
+      console.log("🧹 Disconnecting socket...");
+      socketService.removeAllListeners();
+      socketService.disconnect();
+    };
+  }, [token, userId]);
+
+  // Effect: Setup Listeners
+  useEffect(() => {
+    if (!token || !userId) return;
+
+    setupSocketListeners();
+
+    return () => {
+      socketService.removeAllListeners();
+    };
+  }, [token, userId, setupSocketListeners]);
+
+  // Effect: Handle Conversation Change
+  useEffect(() => {
+    if (!selectedConversation) return;
+
+    if (prevConversationRef.current) {
+      socketService.leaveConversation(prevConversationRef.current);
+    }
+
+    socketService.joinConversation(selectedConversation._id);
+    prevConversationRef.current = selectedConversation._id;
+
+    if (messagesCache.current[selectedConversation._id]) {
+      setMessages(messagesCache.current[selectedConversation._id]);
+    } else {
+      fetchMessages(selectedConversation._id);
+    }
+
+    socketService.emit("mark-messages-read", {
+      conversationId: selectedConversation._id,
+    });
+  }, [selectedConversation]);
+
+  // API Actions
   const fetchConversations = async () => {
     try {
-      console.log("📞 Fetching conversations...");
       if (!token) return;
-
       const response = await api.getConversations(token);
-
       if (response.success) {
-        console.log("✅ Got conversations:", response.data.length);
         setConversations(response.data);
-
-        // Pre-populate online status
+        // Seed the onlineUsers map with real status + lastSeen from DB
+        const initialStatus = {};
         response.data.forEach((conv) => {
           conv.participants?.forEach((participant) => {
-            if (participant.status === "online") {
-              setOnlineUsers((prev) => ({ ...prev, [participant._id]: true }));
+            if (participant._id && !initialStatus[participant._id]) {
+              initialStatus[participant._id] = {
+                online: participant.status === "online",
+                lastSeen: participant.lastSeen ? new Date(participant.lastSeen) : null,
+              };
             }
           });
         });
+        setOnlineUsers(initialStatus);
       }
     } catch (error) {
       console.error("❌ Failed to fetch conversations:", error);
@@ -359,14 +509,22 @@ export const ChatProvider = ({ children, token, userId }) => {
 
   const fetchMessages = async (conversationId) => {
     try {
-      console.log("📩 Fetching messages for:", conversationId);
       if (!token) return;
-
       setLoading(true);
       const response = await api.getMessages(conversationId, token);
-
       if (response.success) {
-        const transformedMessages = response.data.map(transformMessage);
+        const rawMessages = response.data;
+        const targetConv = conversations.find(c => c._id === conversationId) || selectedConversation;
+
+        // Decrypt messages in bulk
+        const decryptedMessages = await Promise.all(rawMessages.map(async (m) => {
+          if (m.isEncrypted) {
+            m.content = await decryptMessageContent(m, targetConv);
+          }
+          return m;
+        }));
+
+        const transformedMessages = decryptedMessages.map(transformMessage);
         setMessages(transformedMessages);
         messagesCache.current[conversationId] = transformedMessages;
       }
@@ -377,35 +535,9 @@ export const ChatProvider = ({ children, token, userId }) => {
     }
   };
 
-  // const sendMessage = async (content, type = "text", replyTo = null) => {
-  //   if (!selectedConversation || !token) return { success: false };
-
-  //   try {
-  //     const response = await api.sendMessage(
-  //       {
-  //         conversationId: selectedConversation._id,
-  //         content,
-  //         type,
-  //         replyTo,
-  //       },
-  //       token
-  //     );
-
-  //     if (response.success) {
-  //       // Message will be added via socket event
-  //       return { success: true };
-  //     }
-  //     return { success: false };
-  //   } catch (error) {
-  //     console.error("❌ Failed to send message:", error);
-  //     return { success: false };
-  //   }
-  // };
-
   const sendMessage = async (content, type = "text", replyTo = null, extraData = {}) => {
     if (!selectedConversation || !token) return { success: false };
 
-    // 🔥 optimistic message
     const tempMessage = {
       id: `temp-${Date.now()}`,
       content,
@@ -424,26 +556,43 @@ export const ChatProvider = ({ children, token, userId }) => {
     });
 
     try {
+      let finalContent = content;
+      let isEncrypted = false;
+
+      // Encrypt if it's a 1-on-1 chat
+      if (selectedConversation.type === 'one-on-one' && type === 'text') {
+        const otherParticipant = selectedConversation.participants?.find(p => p._id !== userId);
+        if (otherParticipant?.settings?.publicKey) {
+          try {
+            let sharedKey = sharedKeys.current[otherParticipant._id];
+            if (!sharedKey) {
+              const otherPubKeyJwk = JSON.parse(otherParticipant.settings.publicKey);
+              sharedKey = await deriveSharedSecret(otherPubKeyJwk);
+              sharedKeys.current[otherParticipant._id] = sharedKey;
+            }
+            const encryptedData = await encryptMessage(content, sharedKey);
+            finalContent = JSON.stringify(encryptedData);
+            isEncrypted = true;
+          } catch (err) {
+            console.error("Encryption failed, sending as plain text:", err);
+          }
+        }
+      }
+
       const response = await api.sendMessage(
         {
           conversationId: selectedConversation._id,
-          content,
+          content: finalContent,
           type,
           replyTo,
+          isEncrypted,
           ...extraData,
         },
         token,
       );
-
-      if (response.success) {
-        return { success: true };
-      }
-
+      if (response.success) return { success: true };
       throw new Error("Send failed");
     } catch (error) {
-      console.error("❌ Failed to send message:", error);
-
-      // rollback on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempMessage.id));
       return { success: false };
     }
@@ -451,21 +600,14 @@ export const ChatProvider = ({ children, token, userId }) => {
 
   const sendMediaMessage = async (file, type) => {
     if (!selectedConversation || !token) return { success: false };
-
     try {
       const formData = new FormData();
       formData.append("media", file);
       formData.append("conversationId", selectedConversation._id);
       formData.append("type", type);
-
       const response = await api.uploadMedia(formData, token);
-
-      if (response.success) {
-        return { success: true };
-      }
-      return { success: false };
+      return { success: response.success };
     } catch (error) {
-      console.error("❌ Failed to send media:", error);
       return { success: false };
     }
   };
@@ -473,26 +615,17 @@ export const ChatProvider = ({ children, token, userId }) => {
   const createNewConversation = async (user) => {
     try {
       if (!token) return { success: false };
-
       const response = await api.createConversation(user._id, token);
-
       if (response.success) {
-        const newConversation = response.data;
-
-        const existingConv = conversations.find(
-          (c) => c._id === newConversation._id,
-        );
-
-        if (!existingConv) {
-          setConversations((prev) => [newConversation, ...prev]);
+        const newConv = response.data;
+        if (!conversations.find((c) => c._id === newConv._id)) {
+          setConversations((prev) => [newConv, ...prev]);
         }
-
-        setSelectedConversation(newConversation);
+        setSelectedConversation(newConv);
         return { success: true };
       }
       return { success: false };
     } catch (error) {
-      console.error("❌ Failed to create conversation:", error);
       return { success: false };
     }
   };
@@ -500,14 +633,19 @@ export const ChatProvider = ({ children, token, userId }) => {
   const createGroupConversation = async (participantIds, name) => {
     try {
       if (!token) return { success: false };
+      // Create group with only self as participant; invites sent separately
       const response = await api.createGroupConversation(participantIds, name, token);
       if (response.success) {
         const newConversation = response.data;
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedConversation(newConversation);
-        return { success: true };
+        // Now send invites to each selected participant
+        for (const pid of participantIds) {
+          await api.sendGroupInvite(newConversation._id, pid, token);
+        }
+        return { success: true, conversation: newConversation };
       }
-      return { success: false };
+      return { success: false, error: response.message };
     } catch (error) {
       console.error("❌ Failed to create group:", error);
       return { success: false };
@@ -543,94 +681,84 @@ export const ChatProvider = ({ children, token, userId }) => {
     await api.removeAdmin(selectedConversation._id, userId, token);
   };
 
+  const updateGroupInfo = async (conversationId, data) => {
+    if (!token) return { success: false };
+    const response = await api.updateGroupInfo(conversationId, data, token);
+    if (response.success) {
+      setConversations((prev) =>
+        prev.map((c) => (c._id === conversationId ? response.data : c))
+      );
+      setSelectedConversation((prev) =>
+        prev && prev._id === conversationId ? response.data : prev
+      );
+    }
+    return response;
+  };
+
+  const respondGroupInvite = async (conversationId, accept) => {
+    if (!token) return { success: false };
+    const response = await api.respondGroupInvite(conversationId, accept, token);
+    setGroupInvite(null);
+    return response;
+  };
+
   const votePoll = async (messageId, optionIndex) => {
     if (!token) return;
     await api.votePoll(messageId, optionIndex, token);
   };
 
-  const updateConversationsList = useCallback((message) => {
-    setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === message.conversationId
-          ? {
-            ...conv,
-            lastMessage: message,
-            updatedAt: new Date(),
-          }
-          : conv,
-      );
-      return updated.sort(
-        (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
-      );
-    });
-  }, []);
-
-  let typingTimeout;
-
   const handleTyping = useCallback(() => {
     if (!selectedConversation) return;
-
-    socketService.sendTyping(selectedConversation._id);
-
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socketService.sendTyping(selectedConversation._id);
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
       socketService.sendStopTyping(selectedConversation._id);
-    }, 1000);
+      isTypingRef.current = false;
+    }, 3000);
   }, [selectedConversation]);
 
   const handleStopTyping = useCallback(() => {
     if (selectedConversation) {
       socketService.sendStopTyping(selectedConversation._id);
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     }
   }, [selectedConversation]);
 
-  const getConversationName = useCallback(
-    (conversation) => {
-      if (conversation.type === "group") {
-        return conversation.groupName || "Group Chat";
-      }
-      const otherParticipant = conversation.participants?.find(
-        (p) => p._id !== userId,
-      );
-      return otherParticipant?.name || "Unknown User";
-    },
-    [userId],
-  );
+  const getConversationName = useCallback((conversation) => {
+    if (conversation.type === "group") return conversation.groupName || "Group Chat";
+    const other = conversation.participants?.find((p) => p._id !== userId);
+    return other?.name || "Unknown User";
+  }, [userId]);
 
-  const getConversationAvatar = useCallback(
-    (conversation) => {
-      if (conversation.type === "group") {
-        return conversation.groupAvatar || null;
-      }
-      const otherParticipant = conversation.participants?.find(
-        (p) => p._id !== userId,
-      );
-      return otherParticipant?.avatar;
-    },
-    [userId],
-  );
+  const getConversationAvatar = useCallback((conversation) => {
+    if (conversation.type === "group") return conversation.groupAvatar || null;
+    const other = conversation.participants?.find((p) => p._id !== userId);
+    return other?.avatar;
+  }, [userId]);
 
-  const isUserOnline = useCallback(
-    (conversation) => {
-      if (conversation.type === "group") return true;
-      const otherParticipant = conversation.participants?.find(
-        (p) => p._id !== userId,
-      );
-      return otherParticipant && onlineUsers[otherParticipant._id];
-    },
-    [userId, onlineUsers],
-  );
+  const isUserOnline = useCallback((conversation) => {
+    if (conversation.type === "group") return false;
+    const other = conversation.participants?.find((p) => p._id !== userId);
+    if (!other) return false;
+    // Prefer real-time socket data, fall back to participant data from DB
+    const rtStatus = onlineUsers[other._id];
+    if (rtStatus !== undefined) return rtStatus.online === true;
+    return other.status === "online";
+  }, [userId, onlineUsers]);
 
-  const getLastSeen = useCallback(
-    (conversation) => {
-      if (conversation.type === "group") return null;
-      const otherParticipant = conversation.participants?.find(
-        (p) => p._id !== userId,
-      );
-      return otherParticipant?.lastSeen;
-    },
-    [userId],
-  );
+  const getLastSeen = useCallback((conversation) => {
+    if (conversation.type === "group") return null;
+    const other = conversation.participants?.find((p) => p._id !== userId);
+    if (!other) return null;
+    // Prefer real-time socket data, fall back to participant data from DB
+    const rtStatus = onlineUsers[other._id];
+    if (rtStatus !== undefined) return rtStatus.lastSeen || other?.lastSeen || null;
+    return other?.lastSeen || null;
+  }, [userId, onlineUsers]);
 
   const addReaction = useCallback((messageId, emoji) => {
     socketService.emit("add-reaction", { messageId, emoji });
@@ -640,14 +768,13 @@ export const ChatProvider = ({ children, token, userId }) => {
     socketService.emit("remove-reaction", { messageId });
   }, []);
 
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio("/notification.mp3");
-      audio.play().catch((e) => console.log("Could not play sound:", e));
-    } catch (e) {
-      console.log("Notification sound error:", e);
-    }
-  };
+  const setConversationWallpaper = useCallback((conversationId, wallpaper) => {
+    setConversationWallpapers((prev) => {
+      const updated = { ...prev, [conversationId]: wallpaper };
+      localStorage.setItem("conversationWallpapers", JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const value = {
     conversations,
@@ -678,7 +805,19 @@ export const ChatProvider = ({ children, token, userId }) => {
     makeAdmin,
     removeAdmin,
     votePoll,
+    notification,
+    setNotification,
     userId,
+    conversationWallpapers,
+    setConversationWallpaper,
+    incomingCall,
+    setIncomingCall,
+    activeCall,
+    setActiveCall,
+    groupInvite,
+    setGroupInvite,
+    updateGroupInfo,
+    respondGroupInvite,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

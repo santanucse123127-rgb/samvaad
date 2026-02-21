@@ -29,53 +29,57 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit }) => {
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                 <motion.div
-                    className="bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
+                    className="bg-card border border-border/50 rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden"
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 >
-                    <div className="p-6 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-900/20 to-blue-900/20">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-purple-400" />
-                            <h2 className="text-xl font-bold text-white">Schedule Message</h2>
+                    <div className="p-6 border-b border-border/50 flex items-center justify-between bg-wa-accent/5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-wa-accent/10 flex items-center justify-center">
+                                <Calendar className="w-5 h-5 text-wa-accent" />
+                            </div>
+                            <h2 className="text-xl font-bold text-wa-text-primary">Schedule Message</h2>
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 rounded-lg hover:bg-gray-800 flex items-center justify-center transition-colors"
+                            className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors text-wa-text-secondary"
                         >
-                            <X className="w-5 h-5 text-gray-400" />
+                            <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-wa-text-primary ml-1 uppercase tracking-wider">
                                     Date
                                 </label>
-                                <input
-                                    type="date"
-                                    min={minDate}
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
-                                    required
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        min={minDate}
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="w-full px-5 py-3 rounded-2xl bg-muted/50 border border-border/50 focus:border-wa-accent focus:ring-1 focus:ring-wa-accent/20 outline-none transition-all font-medium appearance-none"
+                                        required
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-wa-text-primary ml-1 uppercase tracking-wider">
                                     Time
                                 </label>
                                 <div className="relative">
-                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-wa-text-secondary pr-1" />
                                     <input
                                         type="time"
                                         value={time}
                                         onChange={(e) => setTime(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none text-white placeholder-gray-500"
+                                        className="w-full pl-12 pr-5 py-3 rounded-2xl bg-muted/50 border border-border/50 focus:border-wa-accent focus:ring-1 focus:ring-wa-accent/20 outline-none transition-all font-medium appearance-none"
                                         required
                                     />
                                 </div>
@@ -84,7 +88,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit }) => {
 
                         <button
                             type="submit"
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all active:scale-95 mt-4"
+                            className="w-full py-4 rounded-2xl bg-wa-accent text-white font-bold text-lg shadow-xl shadow-wa-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4"
                         >
                             Schedule Send
                         </button>

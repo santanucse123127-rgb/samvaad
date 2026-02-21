@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  phone: {
+    type: String,
+    default: "",
+  },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
@@ -81,7 +85,20 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true,
     },
+    publicKey: {
+      type: String,
+      default: "",
+    },
+    syncContactsEnabled: {
+      type: Boolean,
+      default: true,
+    },
   },
+  contacts: [{
+    name: String,
+    email: String,
+    tel: String,
+  }],
 }, {
   timestamps: true,
 });
@@ -95,18 +112,18 @@ userSchema.pre('save', async function () {
 });
 
 // Compare password
-userSchema.methods.matchPassword = async function(candidatePassword) {
+userSchema.methods.matchPassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Update last seen
-userSchema.methods.updateLastSeen = function() {
+userSchema.methods.updateLastSeen = function () {
   this.lastSeen = Date.now();
   return this.save();
 };
 
 // Set online status
-userSchema.methods.setOnline = function(socketId) {
+userSchema.methods.setOnline = function (socketId) {
   this.status = 'online';
   this.socketId = socketId;
   this.lastSeen = Date.now();
@@ -114,7 +131,7 @@ userSchema.methods.setOnline = function(socketId) {
 };
 
 // Set offline status
-userSchema.methods.setOffline = function() {
+userSchema.methods.setOffline = function () {
   this.status = 'offline';
   this.socketId = '';
   this.lastSeen = Date.now();

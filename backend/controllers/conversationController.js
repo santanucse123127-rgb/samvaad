@@ -1,5 +1,6 @@
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
+import User from '../models/User.js';
 
 // @desc    Get all conversations
 // @route   GET /api/conversations
@@ -9,7 +10,7 @@ export const getConversations = async (req, res) => {
     const conversations = await Conversation.find({
       participants: req.user._id,
     })
-      .populate('participants', 'name email avatar status lastSeen')
+      .populate('participants', 'name email avatar status lastSeen settings')
       .populate('lastMessage')
       .sort({ updatedAt: -1 });
 
@@ -35,7 +36,7 @@ export const getConversationById = async (req, res) => {
       _id: req.params.id,
       participants: req.user._id,
     })
-      .populate('participants', 'name email avatar status lastSeen')
+      .populate('participants', 'name email avatar status lastSeen settings')
       .populate('lastMessage');
 
     if (!conversation) {
@@ -92,7 +93,7 @@ export const createConversation = async (req, res) => {
       });
 
       const populatedConversation = await Conversation.findById(conversation._id)
-        .populate('participants', 'name email avatar status lastSeen');
+        .populate('participants', 'name email avatar status lastSeen settings');
 
       res.status(201).json({
         success: true,
@@ -111,7 +112,7 @@ export const createConversation = async (req, res) => {
       });
 
       const populatedConversation = await Conversation.findById(conversation._id)
-        .populate('participants', 'name email avatar status lastSeen');
+        .populate('participants', 'name email avatar status lastSeen settings');
 
       res.status(201).json({
         success: true,
@@ -163,33 +164,51 @@ export const deleteConversation = async (req, res) => {
   }
 };
 
-// @desc    Update group info
-// @route   PUT /api/conversations/:id/group
-// @access  Private
 export const updateGroupInfo = async (req, res) => {
   try {
-    const { groupName, groupAvatar } = req.body;
+    const { groupName, groupAvatar, groupDescription } = req.body;
 
+    // Allow both admin and any participant to update (relax constraint a bit)
     const conversation = await Conversation.findOne({
       _id: req.params.id,
       type: 'group',
-      groupAdmin: req.user._id,
+      participants: req.user._id,
     });
 
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Group not found or you are not the admin',
+        message: 'Group not found or you are not a participant',
       });
     }
 
-    if (groupName) conversation.groupName = groupName;
-    if (groupAvatar) conversation.groupAvatar = groupAvatar;
+    // Only admin can change name/avatar, but let's allow admin check per field
+    const isAdmin = conversation.groupAdmin.some(a => a.toString() === req.user._id.toString());
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only admins can edit group info' });
+    }
+
+    if (groupName !== undefined) conversation.groupName = groupName;
+    if (groupAvatar !== undefined) conversation.groupAvatar = groupAvatar;
+    if (groupDescription !== undefined) conversation.groupDescription = groupDescription;
 
     await conversation.save();
 
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status lastSeen');
+      .populate('participants', 'name email avatar status lastSeen settings');
+
+    // Notify all participants via socket
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(conversation._id.toString()).emit('group-updated', {
+          conversationId: conversation._id,
+          groupName: conversation.groupName,
+          groupAvatar: conversation.groupAvatar,
+          groupDescription: conversation.groupDescription,
+        });
+      }
+    } catch (_) { }
 
     res.json({
       success: true,
@@ -226,7 +245,7 @@ export const addParticipant = async (req, res) => {
     await conversation.addParticipant(userId);
 
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status lastSeen');
+      .populate('participants', 'name email avatar status lastSeen settings');
 
     res.json({
       success: true,
@@ -263,7 +282,7 @@ export const removeParticipant = async (req, res) => {
     await conversation.removeParticipant(userId);
 
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status lastSeen');
+      .populate('participants', 'name email avatar status lastSeen settings');
 
     res.json({
       success: true,
@@ -345,7 +364,7 @@ export const makeAdmin = async (req, res) => {
     await conversation.addAdmin(userId);
 
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status lastSeen');
+      .populate('participants', 'name email avatar status lastSeen settings');
 
     res.json({
       success: true,
@@ -382,7 +401,7 @@ export const removeAdmin = async (req, res) => {
     await conversation.removeAdmin(userId);
 
     const populatedConversation = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status lastSeen');
+      .populate('participants', 'name email avatar status lastSeen settings');
 
     res.json({
       success: true,
@@ -394,5 +413,101 @@ export const removeAdmin = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// @desc    Send group invite to a user
+// @route   POST /api/conversations/:id/invite
+// @access  Private (admin only)
+export const sendGroupInvite = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+      participants: req.user._id,
+    }).populate('groupAdmin', 'name');
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+
+    // Find the user to invite
+    const invitedUser = await User.findById(userId).select('name email avatar');
+    if (!invitedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Already a member?
+    if (conversation.participants.some(p => p.toString() === userId)) {
+      return res.status(400).json({ success: false, message: 'User is already a member' });
+    }
+
+    // Send real-time invite to target user's personal socket room
+    const io = req.app.get('io');
+    if (io) {
+      io.to(userId).emit('group-invite', {
+        conversationId: conversation._id,
+        groupName: conversation.groupName,
+        groupAvatar: conversation.groupAvatar,
+        invitedBy: {
+          _id: req.user._id,
+          name: req.user.name,
+          avatar: req.user.avatar,
+        },
+      });
+    }
+
+    res.json({ success: true, message: `Invite sent to ${invitedUser.name}` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Respond to group invite (accept or decline)
+// @route   POST /api/conversations/:id/invite/respond
+// @access  Private
+export const respondGroupInvite = async (req, res) => {
+  try {
+    const { accept } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      type: 'group',
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+
+    if (!accept) {
+      return res.json({ success: true, message: 'Invite declined' });
+    }
+
+    // Add user to participants
+    await conversation.addParticipant(req.user._id);
+
+    const populatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'name email avatar status lastSeen settings');
+
+    // Notify all group members
+    const io = req.app.get('io');
+    if (io) {
+      io.to(conversation._id.toString()).emit('member-joined', {
+        conversationId: conversation._id,
+        user: { _id: req.user._id, name: req.user.name, avatar: req.user.avatar },
+        conversation: populatedConversation,
+      });
+
+      // Also send the new conversation data to the newly joined user
+      io.to(req.user._id.toString()).emit('joined-group', {
+        conversation: populatedConversation,
+      });
+    }
+
+    res.json({ success: true, data: populatedConversation });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
