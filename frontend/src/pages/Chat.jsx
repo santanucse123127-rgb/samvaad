@@ -226,9 +226,31 @@ const Chat = ({ token }) => {
   };
 
   const handleTimeCapsule = async (unlockDate) => {
-    if (!newMessage.trim()) return;
-    await sendMessage(newMessage, "text", null, { unlockAt: unlockDate });
-    setNewMessage("");
+    if (!newMessage.trim() && !uploadPreview) return;
+
+    if (uploadPreview) {
+      const type = uploadPreview.type.startsWith("image/") ? "image"
+        : uploadPreview.type.startsWith("video/") ? "video"
+          : uploadPreview.type.startsWith("audio/") ? "voice" : "file";
+      await sendMediaMessage(uploadPreview.file, type, { unlockAt: unlockDate.toISOString() });
+      setUploadPreview(null);
+    } else {
+      await sendMessage(newMessage, "text", null, { unlockAt: unlockDate.toISOString() });
+      setNewMessage("");
+    }
+
+    // Creative confirmation message
+    const creativeMessages = [
+      "✨ A digital treasure has been sealed in the sands of time... ⏳",
+      "🚀 Mission launched: This message is now traveling to the future! 🌟",
+      "💎 A piece of today has been locked away for a special tomorrow... ✨",
+      "🔒 Sealed with a spell! This memory will only awaken when the time is right. 🕯️",
+      "🌈 Paradox avoided! Your time capsule is safely tucked in the temporal void. 🎁"
+    ];
+    const randomMsg = creativeMessages[Math.floor(Math.random() * creativeMessages.length)];
+    setTimeout(() => {
+      sendMessage(randomMsg, "text");
+    }, 800);
   };
 
   const startRecording = async () => {

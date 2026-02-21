@@ -60,35 +60,41 @@ const TimeCapsuleModal = ({ isOpen, onClose, onSend }) => {
                         {/* Header */}
                         <div className="p-6 pb-4 flex items-center justify-between border-b border-sv-border/50">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-orange-500">
-                                    <Lock size={20} />
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+                                    <Lock size={22} />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-sv-text">Digital Time Capsule</h3>
-                                    <p className="text-xs text-sv-text-3">Message will be visible but locked</p>
+                                    <h3 className="text-lg font-bold text-sv-text tracking-tight">Time Capsule</h3>
+                                    <p className="text-[11px] font-medium text-orange-500/80 uppercase tracking-widest">Temporal Vault</p>
                                 </div>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="sv-icon-btn p-2 rounded-xl"
+                                className="sv-icon-btn p-2.5 rounded-xl hover:bg-orange-500/10"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                            <div className="text-center space-y-2 mb-2">
+                                <p className="text-sm font-medium text-sv-text-2">
+                                    Seal your current message or file into a digital vault.
+                                </p>
+                            </div>
+
                             {/* Presets */}
                             <div className="space-y-3">
-                                <label className="text-xs font-bold uppercase tracking-wider text-sv-text-3">Quick Presets</label>
+                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-sv-text-3 px-1">Quick Presets</label>
                                 <div className="grid grid-cols-3 gap-3">
                                     {presets.map((p) => (
                                         <button
                                             key={p.value}
                                             type="button"
                                             onClick={() => handlePresetSelect(p.value)}
-                                            className={`py-3 px-2 rounded-2xl text-xs font-semibold border transition-all ${preset === p.value
-                                                    ? "bg-orange-500/10 border-orange-500/50 text-orange-500"
-                                                    : "bg-sv-surface-2 border-sv-border text-sv-text-2 hover:border-sv-text-3"
+                                            className={`py-3.5 px-2 rounded-2xl text-[11px] font-bold border transition-all duration-300 ${preset === p.value
+                                                    ? "bg-orange-500/10 border-orange-500/60 text-orange-500 shadow-inner"
+                                                    : "bg-sv-surface-2 border-sv-border text-sv-text-2 hover:border-orange-500/30 hover:text-sv-text"
                                                 }`}
                                         >
                                             {p.label}
@@ -98,41 +104,37 @@ const TimeCapsuleModal = ({ isOpen, onClose, onSend }) => {
                             </div>
 
                             {/* Custom Selector */}
-                            <div className="space-y-4">
-                                <label className="text-xs font-bold uppercase tracking-wider text-sv-text-3">Custom Unlock Time</label>
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-sv-text-3 px-1">Custom Orbit</label>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-sv-text-3" size={16} />
-                                            <input
-                                                type="date"
-                                                value={date}
-                                                onChange={(e) => { setDate(e.target.value); setPreset(null); }}
-                                                className="sv-input py-2.5 pl-10 text-sm"
-                                                required
-                                            />
-                                        </div>
+                                    <div className="relative group">
+                                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-orange-500/50 group-focus-within:text-orange-500 transition-colors" size={16} />
+                                        <input
+                                            type="date"
+                                            value={date}
+                                            onChange={(e) => { setDate(e.target.value); setPreset(null); }}
+                                            className="sv-input py-3 pl-11 text-xs font-semibold focus:border-orange-500/50"
+                                            required
+                                        />
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <div className="relative">
-                                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-sv-text-3" size={16} />
-                                            <input
-                                                type="time"
-                                                value={time}
-                                                onChange={(e) => { setTime(e.target.value); setPreset(null); }}
-                                                className="sv-input py-2.5 pl-10 text-sm"
-                                                required
-                                            />
-                                        </div>
+                                    <div className="relative group">
+                                        <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-orange-500/50 group-focus-within:text-orange-500 transition-colors" size={16} />
+                                        <input
+                                            type="time"
+                                            value={time}
+                                            onChange={(e) => { setTime(e.target.value); setPreset(null); }}
+                                            className="sv-input py-3 pl-11 text-xs font-semibold focus:border-orange-500/50"
+                                            required
+                                        />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Info Box */}
-                            <div className="p-4 rounded-2xl bg-orange-500/5 border border-orange-500/10 flex gap-3 items-start">
-                                <Sparkles size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
-                                <p className="text-[11px] leading-relaxed text-sv-text-2">
-                                    Recipient will see that you've sent a time capsule, but they won't be able to read the content until the date you specified.
+                            <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex gap-3 items-start backdrop-blur-md">
+                                <Sparkles size={16} className="text-orange-500 flex-shrink-0 mt-0.5 animate-pulse" />
+                                <p className="text-[11px] leading-relaxed text-sv-text-2 font-medium">
+                                    Content will be hidden behind a temporal shield. The recipient will see the lock, but the data stays encrypted until the clock runs out.
                                 </p>
                             </div>
 
@@ -140,10 +142,10 @@ const TimeCapsuleModal = ({ isOpen, onClose, onSend }) => {
                             <button
                                 type="submit"
                                 disabled={!date || !time}
-                                className="sv-btn-primary w-full py-4 rounded-2xl gap-3"
+                                className="sv-btn-primary w-full py-4.5 rounded-2xl flex items-center justify-center gap-3 text-sm font-black uppercase tracking-widest transition-all hover:scale-[1.02] shadow-xl"
                                 style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', boxShadow: '0 8px 30px -4px rgba(234, 88, 12, 0.4)' }}
                             >
-                                Assemble Capsule <Send size={18} />
+                                Seal Capsule <Send size={18} />
                             </button>
                         </form>
                     </motion.div>

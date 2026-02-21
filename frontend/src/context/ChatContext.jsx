@@ -599,13 +599,19 @@ export const ChatProvider = ({ children, token, userId }) => {
     }
   };
 
-  const sendMediaMessage = async (file, type) => {
+  const sendMediaMessage = async (file, type, extraData = {}) => {
     if (!selectedConversation || !token) return { success: false };
     try {
       const formData = new FormData();
       formData.append("media", file);
       formData.append("conversationId", selectedConversation._id);
       formData.append("type", type);
+
+      // Add extra data (like unlockAt) to formData
+      Object.keys(extraData).forEach(key => {
+        if (extraData[key]) formData.append(key, extraData[key]);
+      });
+
       const response = await api.uploadMedia(formData, token);
       return { success: response.success };
     } catch (error) {

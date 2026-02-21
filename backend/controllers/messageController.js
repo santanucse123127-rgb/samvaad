@@ -249,7 +249,7 @@ export const uploadMedia = async (req, res) => {
       });
     }
 
-    const { conversationId, type, replyTo, duration } = req.body;
+    const { conversationId, type, replyTo, duration, unlockAt } = req.body;
 
     const conversation = await Conversation.findOne({
       _id: conversationId,
@@ -289,6 +289,7 @@ export const uploadMedia = async (req, res) => {
       duration: duration || null,
       thumbnail: result.eager?.[0]?.secure_url || null,
       replyTo: replyTo || null,
+      unlockAt: unlockAt || null,
       status: "sent",
     });
 
