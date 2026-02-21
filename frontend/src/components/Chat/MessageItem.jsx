@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon } from "lucide-react";
+import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon, Lock } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChat } from "../../context/ChatContext";
@@ -99,8 +99,9 @@ const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const MessageItem = ({ message, isOwn, onReply }) => {
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const leaveTimer = useRef(null);
-  const { votePoll, addReaction, userId } = useChat();
+  const { votePoll, addReaction, deleteMessage, userId } = useChat();
 
   const time = message.createdAt || message.timestamp
     ? new Date(message.createdAt || message.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -111,6 +112,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
     leaveTimer.current = setTimeout(() => {
       setShowActions(false);
       setShowReactions(false);
+      setShowDeleteOptions(false);
     }, 200);
   };
   const handleMouseEnter = () => {
@@ -181,6 +183,44 @@ const MessageItem = ({ message, isOwn, onReply }) => {
 
   /* ── Bubble content ── */
   const renderContent = () => {
+    // Time Capsule Locking Logic
+    const isLocked = message.unlockAt && new Date(message.unlockAt) > new Date();
+
+    if (isLocked) {
+      const unlockDate = new Date(message.unlockAt);
+      const fmtUnlock = unlockDate.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: unlockDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      return (
+        <div className="flex flex-col items-center justify-center py-6 px-4 text-center space-y-3 min-w-[220px]">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center relative shadow-lg"
+            style={{ background: isOwn ? 'rgba(255,255,255,0.15)' : 'hsl(var(--sv-accent)/0.1)', color: isOwn ? 'white' : 'hsl(var(--sv-accent))' }}>
+            <Lock size={24} />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 rounded-full border-2 border-dashed opacity-30"
+              style={{ borderColor: 'currentColor' }}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-bold tracking-tight">Time Capsule Locked</p>
+            <p className="text-[10px] opacity-70">Unlocks on {fmtUnlock}</p>
+          </div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="w-1 h-1 rounded-full bg-current opacity-40 animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     if (message.type === 'poll') return renderPoll();
     if (message.type === 'code') return renderCode();
     if (message.type === 'image' && message.mediaUrl) return (
@@ -220,6 +260,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
   return (
     <motion.div
       layout
+      id={`msg-${message.id || message._id}`}
       className={`flex w-full mb-1 px-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -262,14 +303,42 @@ const MessageItem = ({ message, isOwn, onReply }) => {
                     <Reply size={15} />
                   </button>
                   {/* Delete (own only) */}
-                  {isOwn && (
-                    <button className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowDeleteOptions(p => !p)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                       style={{ color: 'hsl(var(--sv-danger)/0.7)' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'hsl(var(--sv-danger)/0.1)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       <Trash2 size={15} />
                     </button>
-                  )}
+
+                    <AnimatePresence>
+                      {showDeleteOptions && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                          className="absolute bottom-full mb-2 flex flex-col min-w-[150px] overflow-hidden rounded-xl shadow-2xl z-50"
+                          style={{ [isOwn ? 'right' : 'left']: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                          <button
+                            onClick={() => { deleteMessage(message.id || message._id, 'me'); setShowDeleteOptions(false); }}
+                            className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5"
+                            style={{ color: 'hsl(var(--sv-text))' }}>
+                            Delete for me
+                          </button>
+                          {isOwn && (Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
+                            <button
+                              onClick={() => { deleteMessage(message.id || message._id, 'everyone'); setShowDeleteOptions(false); }}
+                              className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5 border-t"
+                              style={{ color: 'hsl(var(--sv-danger))', borderColor: 'hsl(var(--sv-border)/0.5)' }}>
+                              Delete for everyone
+                            </button>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
                 {/* Emoji picker sub-panel */}
@@ -312,12 +381,27 @@ const MessageItem = ({ message, isOwn, onReply }) => {
 
             {/* Reply context */}
             {message.replyTo && (
-              <div className="mb-2 px-3 py-2 rounded-xl border-l-2 text-xs cursor-pointer"
+              <div
+                onClick={() => {
+                  const el = document.getElementById(`msg-${message.replyTo._id || message.replyTo.id}`);
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el?.classList.add('sv-highlight-message');
+                  setTimeout(() => el?.classList.remove('sv-highlight-message'), 2000);
+                }}
+                className="mb-2 px-3 py-2 rounded-xl border-l-2 text-xs cursor-pointer transition-opacity hover:opacity-80"
                 style={{ borderColor: 'hsl(var(--sv-accent))', background: isOwn ? 'rgba(0,0,0,0.15)' : 'hsl(var(--sv-surface-3))', color: isOwn ? 'rgba(255,255,255,0.75)' : 'hsl(var(--sv-text-2))' }}>
                 <p className="font-semibold text-[11px] mb-0.5" style={{ color: 'hsl(var(--sv-accent))' }}>
-                  {message.replyTo.sender?.name || 'Message'}
+                  {message.replyTo.sender?.name || 'User'}
                 </p>
-                <p className="truncate">{message.replyTo.content}</p>
+                <p className="truncate">
+                  {message.replyTo.type === 'image' ? '📷 Photo' :
+                    message.replyTo.type === 'video' ? '🎥 Video' :
+                      message.replyTo.type === 'voice' ? '🎤 Voice' :
+                        message.replyTo.type === 'file' ? '📁 File' :
+                          message.replyTo.type === 'poll' ? '📊 Poll' :
+                            message.replyTo.type === 'code' ? '💻 Code' :
+                              message.replyTo.content}
+                </p>
               </div>
             )}
 

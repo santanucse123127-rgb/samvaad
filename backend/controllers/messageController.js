@@ -30,11 +30,7 @@ export const getMessages = async (req, res) => {
     // Get messages with optimized query
     const messages = await Message.find({
       conversationId,
-      $or: [
-        { deleted: false },
-        { deleted: true, deletedFor: { $ne: req.user._id } }
-      ],
-      deletedForEveryone: false,
+      deletedFor: { $ne: req.user._id },
     })
       .populate("sender", "name avatar status lastSeen settings")
       .populate({
@@ -93,7 +89,8 @@ export const sendMessage = async (req, res) => {
       allowMultipleAnswers,
       scheduledAt,
       codeLanguage,
-      isEncrypted
+      isEncrypted,
+      unlockAt
     } = req.body;
 
     const conversation = await Conversation.findOne({
@@ -118,6 +115,7 @@ export const sendMessage = async (req, res) => {
       mentions: mentions || [],
       status: 'sent',
       isEncrypted: isEncrypted || false,
+      unlockAt: unlockAt || null,
     };
 
     // Handle Polls
@@ -438,11 +436,24 @@ export const deleteMessage = async (req, res) => {
       });
     }
 
-    // Verify sender
-    if (message.sender.toString() !== req.user._id.toString()) {
+    // Verify authorization
+    if (deleteFor === "everyone" && message.sender.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to delete this message",
+        message: "Not authorized to delete this message for everyone",
+      });
+    }
+
+    // If deleting for self, ensure user is a participant of the conversation
+    const conversation = await Conversation.findOne({
+      _id: message.conversationId,
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete messages in this conversation",
       });
     }
 

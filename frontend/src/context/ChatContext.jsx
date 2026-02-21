@@ -119,6 +119,7 @@ export const ChatProvider = ({ children, token, userId }) => {
         replyTo: msg.replyTo,
         forwarded: msg.forwarded,
         isEncrypted: msg.isEncrypted,
+        unlockAt: msg.unlockAt,
       };
     },
     [userId],
@@ -776,6 +777,24 @@ export const ChatProvider = ({ children, token, userId }) => {
     });
   }, []);
 
+  const deleteMessage = useCallback(async (messageId, deleteFor = 'me') => {
+    if (!token) return { success: false };
+    try {
+      const response = await api.deleteMessage(messageId, deleteFor, token);
+      if (response.success) {
+        if (deleteFor === 'me') {
+          // Immediately hide locally for "Delete for me"
+          setMessages(prev => prev.filter(m => m.id !== messageId));
+        }
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to delete message:", error);
+      return { success: false };
+    }
+  }, [token]);
+
   const value = {
     conversations,
     selectedConversation,
@@ -788,6 +807,7 @@ export const ChatProvider = ({ children, token, userId }) => {
     sendMessage,
     sendMediaMessage,
     createNewConversation,
+    deleteMessage,
     handleTyping,
     handleStopTyping,
     fetchConversations,

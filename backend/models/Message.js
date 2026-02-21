@@ -143,6 +143,9 @@ const messageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  unlockAt: {
+    type: Date,
+  },
 }, {
   timestamps: true,
 });

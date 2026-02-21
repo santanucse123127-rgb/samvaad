@@ -20,6 +20,7 @@ import TypingIndicator from "../components/Chat/TypingIndicator";
 import CallInterface from "../components/Chat/CallInterface";
 import ClipboardSync from "../components/Chat/ClipboardSync";
 import WallpaperModal from "../components/Chat/WallpaperModal";
+import TimeCapsuleModal from "../components/Chat/TimeCapsuleModal";
 import MyProfilePanel from "../components/MyProfilePanel";
 import { getUsers } from "../services/chatAPI";
 
@@ -98,6 +99,7 @@ const Chat = ({ token }) => {
   const [showPollModal, setShowPollModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showTimeCapsuleModal, setShowTimeCapsuleModal] = useState(false);
   const [showGroupInfoModal, setShowGroupInfoModal] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -163,7 +165,7 @@ const Chat = ({ token }) => {
       await sendMediaMessage(uploadPreview.file, type);
       setUploadPreview(null);
     } else {
-      await sendMessage(newMessage, "text", replyToMessage?._id);
+      await sendMessage(newMessage, "text", replyToMessage?.id);
     }
     setNewMessage("");
     setReplyToMessage(null);
@@ -221,6 +223,12 @@ const Chat = ({ token }) => {
 
   const handleSendCode = async (codeData) => {
     await sendMessage(codeData.code, "code", null, { codeLanguage: codeData.language });
+  };
+
+  const handleTimeCapsule = async (unlockDate) => {
+    if (!newMessage.trim()) return;
+    await sendMessage(newMessage, "text", null, { unlockAt: unlockDate });
+    setNewMessage("");
   };
 
   const startRecording = async () => {
@@ -821,6 +829,9 @@ const Chat = ({ token }) => {
                               <button className="sv-dropdown-item" onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}>
                                 <Settings size={15} style={{ color: '#6ee7b7' }} /> Schedule Message
                               </button>
+                              <button className="sv-dropdown-item" onClick={() => { setShowTimeCapsuleModal(true); setShowAttachMenu(false); }}>
+                                <Lock size={15} style={{ color: '#f97316' }} /> Time Capsule
+                              </button>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -1024,6 +1035,7 @@ const Chat = ({ token }) => {
         <PollModal isOpen={showPollModal} onClose={() => setShowPollModal(false)} onSubmit={handleCreatePoll} />
         <ScheduleModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} onSubmit={handleScheduleMessage} />
         <CodeModal isOpen={showCodeModal} onClose={() => setShowCodeModal(false)} onSubmit={handleSendCode} />
+        <TimeCapsuleModal isOpen={showTimeCapsuleModal} onClose={() => setShowTimeCapsuleModal(false)} onSend={handleTimeCapsule} />
         <GroupInfoModal
           isOpen={showGroupInfoModal}
           onClose={() => setShowGroupInfoModal(false)}
