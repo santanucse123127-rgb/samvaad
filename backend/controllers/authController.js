@@ -1,5 +1,5 @@
-import User from '../models/User.js';
-import generateToken from '../utils/generateToken.js';
+import User from "../models/User.js";
+import generateToken from "../utils/generateToken.js";
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -14,7 +14,7 @@ export const register = async (req, res) => {
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email',
+        message: "User already exists with this email",
       });
     }
 
@@ -24,17 +24,17 @@ export const register = async (req, res) => {
       email,
       password,
       phone,
-      avatar
+      avatar,
     });
 
     if (user) {
+      const userObj = user.toObject ? user.toObject() : { ...user._doc };
+      delete userObj.password;
+      userObj.token = generateToken(user._id);
+
       res.status(201).json({
         success: true,
-        data: {
-          ...user._doc,
-          password: BigInt(0), // Ensure password isn't there (though select: false should handle it)
-          token: generateToken(user._id),
-        },
+        data: userObj,
       });
     }
   } catch (error) {
@@ -54,26 +54,26 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find user by email and include password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (user && (await user.matchPassword(password))) {
       // Update user status to online
-      user.status = 'online';
+      user.status = "online";
       user.lastSeen = Date.now();
       await user.save();
 
+      const userObj = user.toObject ? user.toObject() : { ...user._doc };
+      delete userObj.password;
+      userObj.token = generateToken(user._id);
+
       res.json({
         success: true,
-        data: {
-          ...user._doc,
-          password: BigInt(0),
-          token: generateToken(user._id),
-        },
+        data: userObj,
       });
     } else {
       res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
+        message: "Invalid email or password",
       });
     }
   } catch (error) {
@@ -113,15 +113,15 @@ export const logout = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      user.status = 'offline';
+      user.status = "offline";
       user.lastSeen = Date.now();
-      user.socketId = '';
+      user.socketId = "";
       await user.save();
     }
 
     res.json({
       success: true,
-      message: 'Logged out successfully',
+      message: "Logged out successfully",
     });
   } catch (error) {
     console.error(error);

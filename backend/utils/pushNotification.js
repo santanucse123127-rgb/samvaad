@@ -25,15 +25,23 @@ if (!vapidSubject) {
 
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-if (!vapidPublicKey || !vapidPrivateKey) {
+const pushEnabled = Boolean(vapidPublicKey && vapidPrivateKey);
+if (!pushEnabled) {
   console.warn(
-    "Warning: VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY not set. Push notifications may fail.",
+    "Warning: VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY not set. Push notifications are disabled.",
   );
+} else {
+  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 }
 
-webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+export { pushEnabled };
 
 export const sendPushNotification = async (subscription, payload) => {
+  if (!pushEnabled) {
+    console.warn("Push disabled: not sending push notification");
+    return { success: false, error: "PUSH_DISABLED" };
+  }
+
   try {
     const stringifiedPayload = JSON.stringify(payload);
     await webpush.sendNotification(subscription, stringifiedPayload);
