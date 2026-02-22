@@ -202,6 +202,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const loginWithToken = useCallback(async (newToken, userData) => {
+    try {
+      localStorage.setItem("token", newToken);
+      setToken(newToken);
+      setUser(userData);
+      socketService.connect(newToken);
+      toast({ title: "Login Successful", description: `Welcome back, ${userData.name || "User"}!`, variant: "default" });
+      return true;
+    } catch (error) {
+      console.error("Token login error:", error);
+      return false;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
@@ -266,9 +280,36 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    if (user?.appLock?.enabled) {
+      setIsLocked(true);
+    }
+  }, [user?.appLock?.enabled]);
+
+  const updateAppLock = useCallback(async (data) => {
+    try {
+      const response = await userAPI.updateAppLock(data);
+      if (response.data.success) {
+        setUser(prev => ({ ...prev, appLock: response.data.data }));
+        toast({ title: "Security Updated", description: "App lock settings saved.", variant: "default" });
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      toast({ title: "Update Failed", description: error.response?.data?.message || "Something went wrong", variant: "destructive" });
+      return { success: false };
+    }
+  }, []);
+
+  const unlockApp = useCallback(() => setIsLocked(false), []);
+
   const value = React.useMemo(() => ({
-    user, loading, token, register, login, logout, updateUser, updateProfile, updateSettings, syncContacts
-  }), [user, loading, token, register, login, logout, updateUser, updateProfile, updateSettings, syncContacts]);
+    user, loading, token, register, login, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
+    isLocked, updateAppLock, unlockApp
+  }), [user, loading, token, register, login, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
+    isLocked, updateAppLock, unlockApp]);
 
   return (
     <AuthContext.Provider value={value}>

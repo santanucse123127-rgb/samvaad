@@ -10,6 +10,8 @@ import {
   syncContacts,
   subscribePush,
   unsubscribePush,
+  updateAppLock,
+  verifyAppLock,
 } from '../controllers/userController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { upload, handleMulterError } from '../middlewares/uploadMiddleware.js';
@@ -25,5 +27,7 @@ router.get('/:id', protect, getUserById);
 router.post('/sync-contacts', protect, syncContacts);
 router.post('/subscribe-push', protect, subscribePush);
 router.post('/unsubscribe-push', protect, unsubscribePush);
+router.put('/app-lock', protect, updateAppLock);
+router.post('/app-lock/verify', protect, verifyAppLock);
 
 export default router;

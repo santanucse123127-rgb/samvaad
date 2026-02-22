@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Camera, Check, User, Mail, Info,
-    Eye, Bell, Shield, Smartphone, Globe, Lock
+    Eye, Bell, Shield, Smartphone, Globe, Lock, Cake
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +11,7 @@ const MyProfilePanel = ({ isOpen, onClose }) => {
 
     const [name, setName] = useState(user?.name || '');
     const [bio, setBio] = useState(user?.bio || '');
+    const [birthday, setBirthday] = useState(user?.birthday ? new Date(user.birthday).toISOString().split('T')[0] : '');
     const [avatar, setAvatar] = useState(user?.avatar || '');
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -30,6 +31,7 @@ const MyProfilePanel = ({ isOpen, onClose }) => {
         if (user) {
             setName(user.name);
             setBio(user.bio || '');
+            setBirthday(user.birthday ? new Date(user.birthday).toISOString().split('T')[0] : '');
             setAvatar(user.avatar || '');
             setSettings(user.settings || {
                 readReceipts: true,
@@ -57,6 +59,7 @@ const MyProfilePanel = ({ isOpen, onClose }) => {
         const result = await updateProfile({
             name,
             bio,
+            birthday,
             avatar: avatarPreview || undefined
         });
         if (result.success) {
@@ -185,6 +188,20 @@ const MyProfilePanel = ({ isOpen, onClose }) => {
                                             value={name}
                                             onChange={(e) => { setName(e.target.value); setIsEditing(true); }}
                                             placeholder="Enter your name"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-black tracking-widest uppercase text-wa-text-secondary px-1 flex items-center gap-2">
+                                        <Cake size={12} className="text-wa-accent" /> Birthday
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="date"
+                                            className="sv-input w-full py-3.5 px-4 text-sm font-medium"
+                                            value={birthday}
+                                            onChange={(e) => { setBirthday(e.target.value); setIsEditing(true); }}
                                         />
                                     </div>
                                 </div>

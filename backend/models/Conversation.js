@@ -67,6 +67,16 @@ const conversationSchema = new mongoose.Schema({
       default: false,
     },
   },
+  ephemeralSettings: {
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+    duration: {
+      type: Number, // in seconds
+      default: 86400, // 24 hours
+    },
+  },
 }, {
   timestamps: true,
 });

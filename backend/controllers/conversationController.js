@@ -511,3 +511,125 @@ export const respondGroupInvite = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Toggle pin conversation
+// @route   PUT /api/conversations/:id/pin
+// @access  Private
+export const togglePin = async (req, res) => {
+  try {
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found',
+      });
+    }
+
+    const userId = req.user._id;
+    const isPinned = conversation.pinnedBy.includes(userId);
+
+    if (isPinned) {
+      conversation.pinnedBy = conversation.pinnedBy.filter(
+        (id) => id.toString() !== userId.toString()
+      );
+    } else {
+      conversation.pinnedBy.push(userId);
+    }
+
+    await conversation.save();
+
+    res.json({
+      success: true,
+      data: conversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Toggle archive conversation
+// @route   PUT /api/conversations/:id/archive
+// @access  Private
+export const toggleArchive = async (req, res) => {
+  try {
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found',
+      });
+    }
+
+    const userId = req.user._id;
+    const isArchived = conversation.archivedBy.includes(userId);
+
+    if (isArchived) {
+      conversation.archivedBy = conversation.archivedBy.filter(
+        (id) => id.toString() !== userId.toString()
+      );
+    } else {
+      conversation.archivedBy.push(userId);
+    }
+
+    await conversation.save();
+
+    res.json({
+      success: true,
+      data: conversation,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const updateEphemeralSettings = async (req, res) => {
+  try {
+    const { enabled, duration } = req.body;
+    const conversation = await Conversation.findOne({
+      _id: req.params.id,
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found',
+      });
+    }
+
+    conversation.ephemeralSettings = {
+      enabled: enabled !== undefined ? enabled : (conversation.ephemeralSettings?.enabled || false),
+      duration: duration !== undefined ? duration : (conversation.ephemeralSettings?.duration || 86400),
+    };
+
+    await conversation.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(conversation._id.toString()).emit('ephemeral-settings-updated', {
+        conversationId: conversation._id,
+        ephemeralSettings: conversation.ephemeralSettings,
+      });
+    }
+
+    res.json({ success: true, data: conversation });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

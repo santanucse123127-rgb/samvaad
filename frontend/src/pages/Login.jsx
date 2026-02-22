@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, MessageSquare, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, MessageSquare, Sparkles, Smartphone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
@@ -160,6 +160,16 @@ const Login = () => {
             </svg>
             <span className="font-medium text-sm">Continue with Google</span>
           </button>
+
+          {/* QR Login Option */}
+          <div className="mt-4">
+            <Link
+              to="/qr-login"
+              className="w-full py-3 rounded-xl border border-dashed border-sv-accent/30 text-sv-accent text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sv-accent/5 transition-colors"
+            >
+              <Smartphone size={14} /> Login with QR Code
+            </Link>
+          </div>
 
           {/* Sign up */}
           <p className="text-center text-sm mt-6" style={{ color: 'hsl(var(--sv-text-2))' }}>

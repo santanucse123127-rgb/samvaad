@@ -110,21 +110,54 @@ const userSchema = new mongoose.Schema({
   birthday: {
     type: Date,
   },
+  linkedDevices: [{
+    deviceName: String,
+    deviceType: String, // 'Web', 'Desktop', 'Mobile'
+    lastActive: { type: Date, default: Date.now },
+    browser: String,
+    os: String,
+    ip: String,
+    linkedAt: { type: Date, default: Date.now }
+  }],
+  appLock: {
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+    pin: {
+      type: String,
+    },
+    biometricEnabled: {
+      type: Boolean,
+      default: false,
+    }
+  }
 }, {
   timestamps: true,
 });
 
-// Hash password before saving
+// Hash password or PIN before saving
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isModified('appLock.pin')) {
+    const salt = await bcrypt.genSalt(10);
+    this.appLock.pin = await bcrypt.hash(this.appLock.pin, salt);
+  }
 });
 
 // Compare password
 userSchema.methods.matchPassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Compare PIN
+userSchema.methods.matchPin = async function (candidatePin) {
+  if (!this.appLock.pin) return false;
+  return await bcrypt.compare(candidatePin, this.appLock.pin);
 };
 
 // Update last seen

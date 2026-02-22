@@ -9,6 +9,8 @@ import { dbConnect } from './config/db.js';
 import { initializeSocket } from './socket/socketHandler.js';
 import Message from './models/Message.js';
 import Conversation from './models/Conversation.js';
+import Task from './models/Task.js';
+import { sendToUser } from './utils/pushNotification.js';
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -17,6 +19,9 @@ import contactRoutes from './routes/contactRoutes.js';
 import conversationRoutes from './routes/conversationRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import clipboardRoutes from './routes/clipboardRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
+import deviceRoutes from './routes/deviceRoutes.js';
+import statusRoutes from './routes/statusRoutes.js';
 
 dotenv.config();
 
@@ -115,6 +120,9 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/clipboard', clipboardRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/devices', deviceRoutes);
+app.use('/api/status', statusRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -173,7 +181,45 @@ const checkScheduledMessages = async (io) => {
 };
 
 // Run scheduler every minute
-setInterval(() => checkScheduledMessages(io), 60000);
+setInterval(() => {
+  checkScheduledMessages(io);
+  checkTaskReminders(io);
+}, 60000);
+
+const checkTaskReminders = async (io) => {
+  try {
+    const now = new Date();
+    const in30Mins = new Date(now.getTime() + 30 * 60000);
+
+    const dueTasks = await Task.find({
+      status: 'pending',
+      reminderSent: false,
+      deadline: { $lte: in30Mins, $gte: now },
+    }).populate('user');
+
+    for (const task of dueTasks) {
+      // Send reminder via Push
+      await sendToUser(task.user, {
+        title: 'Task Reminder',
+        body: `Your task "${task.title}" is due soon!`,
+        data: { url: '/chat', taskId: task._id }
+      });
+
+      // Send reminder via Socket
+      if (io) {
+        io.to(`user_${task.user._id}`).emit('task-reminder', {
+          message: `Your task "${task.title}" is due in less than 30 minutes!`,
+          taskId: task._id
+        });
+      }
+
+      task.reminderSent = true;
+      await task.save();
+    }
+  } catch (error) {
+    console.error('Error checking task reminders:', error);
+  }
+};
 
 const PORT = process.env.PORT || 5000;
 

@@ -10,9 +10,14 @@ export const initializeSocket = (io) => {
   // Middleware to authenticate socket connections
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      const { token, sessionId } = socket.handshake.auth;
 
       if (!token) {
+        if (sessionId) {
+          socket.isAnonymous = true;
+          socket.tempSessionId = sessionId;
+          return next();
+        }
         return next(new Error('Authentication error'));
       }
 
@@ -25,6 +30,7 @@ export const initializeSocket = (io) => {
 
       socket.userId = user._id.toString();
       socket.user = user;
+      socket.isAnonymous = false;
       next();
     } catch (error) {
       next(new Error('Authentication error'));
@@ -32,6 +38,12 @@ export const initializeSocket = (io) => {
   });
 
   io.on("connection", async (socket) => {
+    if (socket.isAnonymous) {
+      console.log(`🔗 Anonymous QR session connected: ${socket.tempSessionId}`);
+      socket.join(socket.tempSessionId);
+      return;
+    }
+
     console.log(`✅ User connected: ${socket.userId}`);
 
     try {
@@ -311,6 +323,11 @@ export const initializeSocket = (io) => {
 
       // Handle disconnect
       socket.on("disconnect", async () => {
+        if (socket.isAnonymous) {
+          console.log(`❌ QR session disconnected: ${socket.tempSessionId}`);
+          return;
+        }
+
         console.log(`❌ User disconnected: ${socket.userId}`);
 
         // Remove from active users

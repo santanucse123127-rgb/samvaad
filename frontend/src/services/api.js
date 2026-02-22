@@ -35,6 +35,8 @@ export const userAPI = {
   searchUsers: (query) => API.get(`/users/search?q=${query}`),
   getUserById: (id) => API.get(`/users/${id}`),
   syncContacts: (contacts) => API.post('/users/sync-contacts', { contacts }),
+  updateAppLock: (data) => API.put('/users/app-lock', data),
+  verifyAppLock: (pin) => API.post('/users/app-lock/verify', { pin }),
 };
 
 // Contact APIs
@@ -65,6 +67,9 @@ export const messageAPI = {
   }),
   markAsRead: (id) => API.put(`/messages/${id}/read`),
   deleteMessage: (id, deleteFor) => API.delete(`/messages/${id}`, { data: { deleteFor } }),
+  editMessage: (id, content) => API.put(`/messages/${id}`, { content }),
+  forwardMessage: (id, conversationIds) => API.post(`/messages/${id}/forward`, { conversationIds }),
+  clearChat: (conversationId) => API.delete(`/messages/conversation/${conversationId}/clear`),
 };
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 

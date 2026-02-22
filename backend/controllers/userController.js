@@ -12,6 +12,7 @@ export const updateProfile = async (req, res) => {
       user.name = req.body.name || user.name;
       user.phone = req.body.phone || user.phone;
       user.bio = req.body.bio || user.bio;
+      user.birthday = req.body.birthday || user.birthday;
 
       // If base64 avatar is provided
       if (req.body.avatar && req.body.avatar.startsWith('data:image')) {
@@ -353,4 +354,32 @@ export const unsubscribePush = async (req, res) => {
     console.error('Push unsubscribe error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
+};
+
+export const updateAppLock = async (req, res) => {
+  try {
+    const { enabled, pin, biometricEnabled } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (enabled !== undefined) user.appLock.enabled = enabled;
+    if (pin) user.appLock.pin = pin;
+    if (biometricEnabled !== undefined) user.appLock.biometricEnabled = biometricEnabled;
+
+    await user.save();
+    res.json({ success: true, data: { enabled: user.appLock.enabled, biometricEnabled: user.appLock.biometricEnabled } });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+};
+
+export const verifyAppLock = async (req, res) => {
+  try {
+    const { pin } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const isMatch = await user.matchPin(pin);
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid PIN' });
+
+    res.json({ success: true, message: 'PIN verified' });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };

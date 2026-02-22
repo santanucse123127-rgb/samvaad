@@ -336,6 +336,185 @@ const api = {
       body: JSON.stringify({ endpoint })
     });
     return response.json();
+  },
+
+  async clearChat(conversationId, token) {
+    const response = await fetch(`${API_URL}/messages/conversation/${conversationId}/clear`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async editMessage(messageId, content, token) {
+    const response = await fetch(`${API_URL}/messages/${messageId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content })
+    });
+    return response.json();
+  },
+
+  async forwardMessage(messageId, conversationIds, token) {
+    const response = await fetch(`${API_URL}/messages/${messageId}/forward`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ conversationIds })
+    });
+    return response.json();
+  },
+
+  async getTasks(token) {
+    const response = await fetch(`${API_URL}/tasks`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async createTask(data, token) {
+    const response = await fetch(`${API_URL}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  async updateTask(id, data, token) {
+    const response = await fetch(`${API_URL}/tasks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  async deleteTask(id, token) {
+    const response = await fetch(`${API_URL}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async togglePin(conversationId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/pin`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async toggleArchive(conversationId, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/archive`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async searchMessages(query, token, conversationId = null) {
+    let url = `${API_URL}/messages/search/all?q=${encodeURIComponent(query)}`;
+    if (conversationId) url += `&conversationId=${conversationId}`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async getConversationMedia(conversationId, type, token) {
+    const response = await fetch(`${API_URL}/messages/${conversationId}/media?type=${type}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async getStatuses(token) {
+    const response = await fetch(`${API_URL}/status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async createStatus(data, token) {
+    const response = await fetch(`${API_URL}/status`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  async markStatusSeen(id, token) {
+    const response = await fetch(`${API_URL}/status/${id}/seen`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+
+  async deleteStatus(id, token) {
+    const response = await fetch(`${API_URL}/status/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.json();
+  },
+  async updateEphemeralSettings(conversationId, data, token) {
+    const response = await fetch(`${API_URL}/conversations/${conversationId}/ephemeral`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
   }
 };
 
@@ -371,5 +550,18 @@ export const sendGroupInvite = api.sendGroupInvite;
 export const respondGroupInvite = api.respondGroupInvite;
 export const subscribePush = api.subscribePush;
 export const unsubscribePush = api.unsubscribePush;
+export const getTasks = api.getTasks;
+export const createTask = api.createTask;
+export const updateTask = api.updateTask;
+export const deleteTask = api.deleteTask;
+export const togglePin = api.togglePin;
+export const toggleArchive = api.toggleArchive;
+export const searchMessages = api.searchMessages;
+export const getConversationMedia = api.getConversationMedia;
+export const getStatuses = api.getStatuses;
+export const createStatus = api.createStatus;
+export const markStatusSeen = api.markStatusSeen;
+export const deleteStatus = api.deleteStatus;
+export const updateEphemeralSettings = api.updateEphemeralSettings;
 
 export default api;

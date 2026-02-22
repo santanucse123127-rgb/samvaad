@@ -159,6 +159,14 @@ const messageSchema = new mongoose.Schema({
     },
     messageCount: Number,
   },
+  expiresAt: {
+    type: Date,
+    index: { expires: 0 }, // TTL index to auto-delete
+  },
+  isViewOnce: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: true,
 });
@@ -167,6 +175,7 @@ const messageSchema = new mongoose.Schema({
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 messageSchema.index({ sender: 1, createdAt: -1 });
 messageSchema.index({ deleted: 1, deletedForEveryone: 1 });
+messageSchema.index({ conversationId: 1, deletedFor: 1, createdAt: -1 });
 
 // Virtual for checking if message is read
 messageSchema.virtual('isRead').get(function () {

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
-import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon, Lock, Cake, MapPin, Hash, UserCheck } from "lucide-react";
+import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mic, Forward, Code as CodeIcon, Lock, Cake, MapPin, Hash, UserCheck, Pencil, ListTodo, Eye, X, Pause, Play } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChat } from "../../context/ChatContext";
@@ -96,18 +96,26 @@ const VoicePlayer = ({ url, duration, isOwn }) => {
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-const MessageItem = ({ message, isOwn, onReply }) => {
+const MessageItem = ({ message, isOwn, onReply, onForward }) => {
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const [isViewingOnce, setIsViewingOnce] = useState(false);
   const leaveTimer = useRef(null);
-  const { votePoll, addReaction, deleteMessage, onlineUsers, userId } = useChat();
+  const { votePoll, addReaction, deleteMessage, editMessage, onlineUsers, userId, markAsRead } = useChat();
+
+  const handleMarkAsViewed = async (id) => {
+    try {
+      await markAsRead(id);
+    } catch (err) { console.error(err); }
+  };
 
   const time = message.createdAt || message.timestamp
     ? new Date(message.createdAt || message.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
     : "";
 
-  /* ── Mouse out with small delay so submenu stays accessible ── */
   const handleMouseLeave = () => {
     leaveTimer.current = setTimeout(() => {
       setShowActions(false);
@@ -120,7 +128,6 @@ const MessageItem = ({ message, isOwn, onReply }) => {
     setShowActions(true);
   };
 
-  /* ── Poll ── */
   const renderPoll = () => {
     const total = message.pollOptions?.reduce((a, o) => a + (o.votes?.length || 0), 0) || 0;
     return (
@@ -158,7 +165,6 @@ const MessageItem = ({ message, isOwn, onReply }) => {
     );
   };
 
-  /* ── Code block ── */
   const renderCode = () => (
     <div className="min-w-[260px] max-w-sm rounded-xl overflow-hidden" style={{ background: '#1a1b26', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/5">
@@ -181,43 +187,44 @@ const MessageItem = ({ message, isOwn, onReply }) => {
     </div>
   );
 
-  /* ── Bubble content ── */
-  const renderContent = () => {
-    // Advanced Locking Logic
+  const renderActualContent = () => {
     const conditions = message.unlockConditions;
     let isLocked = false;
     let lockReason = "";
-    let LockIcon = Lock;
+    let LockIconComponent = Lock;
 
     if (conditions) {
       if (conditions.type === 'time' || !conditions.type) {
         isLocked = message.unlockAt && new Date(message.unlockAt) > new Date();
         lockReason = `Unlocks on ${new Date(message.unlockAt).toLocaleString()}`;
       } else if (conditions.type === 'birthday') {
-        const otherUser = message.sender === 'user' ? null : message; // simplistic check
-        // In reality we'd check message.receiver's birthday. 
-        // For demonstration, we'll assume it's locked until we have user data.
         isLocked = true;
         lockReason = "Birthday Lock: Unlocks on your special day! 🎂";
-        LockIcon = Cake;
+        LockIconComponent = Cake;
       } else if (conditions.type === 'location') {
-        isLocked = true; // Always show locked until proximity check
+        isLocked = true;
         lockReason = `Location Lock: Reach ${conditions.location?.address || 'the target spot'} 📍`;
-        LockIcon = MapPin;
+        LockIconComponent = MapPin;
       } else if (conditions.type === 'count') {
         isLocked = true;
         lockReason = `Message Lock: Unlocks after ${conditions.messageCount} more messages 💬`;
-        LockIcon = Hash;
+        LockIconComponent = Hash;
       } else if (conditions.type === 'online') {
-        const isOtherOnline = onlineUsers.includes(message.sender === 'user' ? 'TODO' : message.senderId);
-        isLocked = true; // Simplified: always show lock in this demo
+        isLocked = true;
         lockReason = "Duo Lock: Unlocks when both are online! ❤️";
-        LockIcon = UserCheck;
+        LockIconComponent = UserCheck;
       }
     } else if (message.unlockAt) {
-      // Compatibility for older time-only capsules
       isLocked = new Date(message.unlockAt) > new Date();
       lockReason = `Unlocks on ${new Date(message.unlockAt).toLocaleString()}`;
+    }
+
+    if (message.deleted) {
+      return (
+        <span className="italic text-xs flex items-center gap-1.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
+          <Trash2 size={12} /> This message was deleted
+        </span>
+      );
     }
 
     if (isLocked) {
@@ -225,7 +232,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
         <div className="flex flex-col items-center justify-center py-8 px-5 text-center space-y-4 min-w-[240px]">
           <div className="w-16 h-16 rounded-3xl flex items-center justify-center relative shadow-2xl overflow-hidden"
             style={{ background: isOwn ? 'rgba(255,255,255,0.15)' : 'hsl(var(--sv-accent)/0.08)', color: isOwn ? 'white' : 'hsl(var(--sv-accent))' }}>
-            <LockIcon size={28} className="relative z-10" />
+            <LockIconComponent size={28} className="relative z-10" />
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
@@ -237,16 +244,6 @@ const MessageItem = ({ message, isOwn, onReply }) => {
           <div className="space-y-1.5">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-90">{conditions?.type || 'Temporal'} Paradox</p>
             <p className="text-[10px] font-medium opacity-60 leading-relaxed max-w-[180px] mx-auto uppercase tracking-wider">{lockReason}</p>
-          </div>
-          <div className="flex gap-1.5">
-            {[0, 1, 2].map(i => (
-              <motion.div
-                key={i}
-                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                className="w-1 h-1 rounded-full bg-current"
-              />
-            ))}
           </div>
         </div>
       );
@@ -265,13 +262,38 @@ const MessageItem = ({ message, isOwn, onReply }) => {
     if (message.type === 'voice') return (
       <VoicePlayer url={message.mediaUrl} duration={message.duration} isOwn={isOwn} />
     );
-    /* text/file/default */
+    if (message.type === 'file') return (
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-black/10 border border-white/5 min-w-[200px]">
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-sv-accent">
+          <File size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold truncate">{message.fileName || message.content}</p>
+          <p className="text-[10px] opacity-40 uppercase font-black">{message.fileSize ? (message.fileSize / 1024 / 1024).toFixed(2) + ' MB' : 'FILE'}</p>
+        </div>
+        <button onClick={() => window.open(message.mediaUrl, '_blank')} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <Download size={18} />
+        </button>
+      </div>
+    );
+
     return (
-      <div>
-        {message.deleted ? (
-          <span className="italic text-xs flex items-center gap-1.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
-            <Trash2 size={12} /> This message was deleted
-          </span>
+      <div className="w-full flex-1">
+        {isEditing ? (
+          <div className="flex flex-col gap-2 min-w-[200px]">
+            <textarea
+              autoFocus
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full bg-black/20 text-white rounded-xl p-2 text-sm border-none focus:ring-1 focus:ring-white/40 resize-none outline-none"
+              rows={3}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setIsEditing(false)} className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 transition-colors">Cancel</button>
+              <button onClick={async () => { await editMessage(message.id || message._id, editContent); setIsEditing(false); }}
+                className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white text-hsl(var(--sv-accent)) hover:bg-white/90 transition-colors" style={{ color: 'hsl(var(--sv-accent))' }}>Save</button>
+            </div>
+          </div>
         ) : (
           <>
             {message.forwarded && (
@@ -279,13 +301,58 @@ const MessageItem = ({ message, isOwn, onReply }) => {
                 <Forward size={11} /> Forwarded
               </div>
             )}
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word' }}>
-              {message.content}
-            </p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word' }}>{message.content}</p>
           </>
         )}
       </div>
     );
+  };
+
+  const renderContent = () => {
+    if (message.isViewOnce && !isOwn && !message.deleted) {
+      return (
+        <div className="flex flex-col items-center justify-center py-6 px-4 text-center space-y-3 min-w-[200px] cursor-pointer group/vo"
+          onClick={() => {
+            if (window.confirm("This is a 'View Once' message. It will disappear after you view it. View now?")) {
+              setIsViewingOnce(true);
+            }
+          }}>
+          <div className="w-12 h-12 rounded-full bg-sv-accent/10 flex items-center justify-center text-sv-accent group-hover/vo:scale-110 transition-transform">
+            <Eye size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider">One-time view</p>
+            <p className="text-[10px] opacity-50 uppercase font-black">Tap to reveal</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (isViewingOnce) {
+      return (
+        <div className="relative group/vo-view shadow-2xl overflow-hidden rounded-xl bg-black/40 p-4 border border-white/10 backdrop-blur-3xl">
+          <div className="absolute top-2 right-2 z-10">
+            <button onClick={(e) => {
+              e.stopPropagation();
+              setIsViewingOnce(false);
+              handleMarkAsViewed(message._id || message.id);
+            }} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="blur-md hover:blur-none transition-all duration-700 p-2"
+            style={{ userSelect: 'none', pointerEvents: 'none' }}
+            onContextMenu={(e) => e.preventDefault()}>
+            {renderActualContent()}
+          </div>
+          <div className="mt-4 text-[9px] font-black text-center uppercase tracking-[0.3em] text-white/30">
+            Disappearing after you close
+          </div>
+        </div>
+      );
+    }
+
+    return renderActualContent();
   };
 
   return (
@@ -298,14 +365,11 @@ const MessageItem = ({ message, isOwn, onReply }) => {
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[72%] relative`}>
-
-        {/* ── Hover action bar ── */}
         <div
           className={`relative flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          {/* Action buttons (appear on hover) */}
           <AnimatePresence>
             {showActions && (
               <motion.div
@@ -317,33 +381,44 @@ const MessageItem = ({ message, isOwn, onReply }) => {
               >
                 <div className="flex items-center gap-1 rounded-full px-2 py-1.5 shadow-xl"
                   style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
-                  {/* Emoji react */}
                   <button onClick={() => setShowReactions(p => !p)}
                     className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-                    style={{ color: 'hsl(var(--sv-text-2))' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'hsl(var(--sv-surface-2))'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    style={{ color: 'hsl(var(--sv-text-2))' }}>
                     <Smile size={15} />
                   </button>
-                  {/* Reply */}
+                  <button onClick={() => { onForward && onForward(message); setShowActions(false); }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                    style={{ color: 'hsl(var(--sv-text-2))' }}>
+                    <Forward size={14} />
+                  </button>
+                  {isOwn && message.type === 'text' && (Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
+                    <button onClick={() => { setIsEditing(true); setEditContent(message.content); setShowActions(false); }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                      style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      <Pencil size={14} />
+                    </button>
+                  )}
                   <button onClick={() => onReply && onReply(message)}
                     className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-                    style={{ color: 'hsl(var(--sv-text-2))' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'hsl(var(--sv-surface-2))'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    style={{ color: 'hsl(var(--sv-text-2))' }}>
                     <Reply size={15} />
                   </button>
-                  {/* Delete (own only) */}
+                  <button onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-task-modal', { detail: { message } }));
+                    setShowActions(false);
+                  }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                    title="Convert to Task"
+                    style={{ color: 'hsl(var(--sv-text-2))' }}>
+                    <ListTodo size={14} />
+                  </button>
                   <div className="relative">
                     <button
                       onClick={() => setShowDeleteOptions(p => !p)}
                       className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-                      style={{ color: 'hsl(var(--sv-danger)/0.7)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'hsl(var(--sv-danger)/0.1)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      style={{ color: 'hsl(var(--sv-danger)/0.7)' }}>
                       <Trash2 size={15} />
                     </button>
-
                     <AnimatePresence>
                       {showDeleteOptions && (
                         <motion.div
@@ -371,8 +446,6 @@ const MessageItem = ({ message, isOwn, onReply }) => {
                     </AnimatePresence>
                   </div>
                 </div>
-
-                {/* Emoji picker sub-panel */}
                 <AnimatePresence>
                   {showReactions && (
                     <motion.div
@@ -384,7 +457,17 @@ const MessageItem = ({ message, isOwn, onReply }) => {
                       {EMOJIS.map(emoji => (
                         <motion.button key={emoji} whileHover={{ scale: 1.4 }} whileTap={{ scale: 0.8 }}
                           className="text-xl cursor-pointer"
-                          onClick={() => { addReaction(message._id || message.id, emoji); setShowReactions(false); }}>
+                          onClick={(e) => {
+                            addReaction(message._id || message.id, emoji);
+                            setShowReactions(false);
+                            window.dispatchEvent(new CustomEvent('magic-burst', {
+                              detail: {
+                                x: e.clientX,
+                                y: e.clientY,
+                                type: emoji === '❤️' ? 'heart' : 'standard'
+                              }
+                            }));
+                          }}>
                           {emoji}
                         </motion.button>
                       ))}
@@ -395,22 +478,14 @@ const MessageItem = ({ message, isOwn, onReply }) => {
             )}
           </AnimatePresence>
 
-          {/* ── THE BUBBLE ── */}
-          <div className={`relative rounded-2xl px-3.5 py-2.5 shadow-md ${isOwn
-            ? 'rounded-br-sm text-white'
-            : 'rounded-bl-sm'
-            }`}
+          <div className={`relative rounded-2xl px-3.5 py-2.5 shadow-md ${isOwn ? 'rounded-br-sm text-white' : 'rounded-bl-sm'}`}
             style={isOwn
               ? { background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))', boxShadow: '0 4px 16px -4px hsl(var(--sv-accent)/0.35)', maxWidth: '100%' }
               : { background: 'hsl(var(--sv-surface-2))', border: '1px solid hsl(var(--sv-border)/0.6)', color: 'hsl(var(--sv-text))', maxWidth: '100%' }
             }>
-
-            {/* Group sender name (left side only for groups) */}
             {!isOwn && message.name && (
               <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--sv-accent))' }}>{message.name}</p>
             )}
-
-            {/* Reply context */}
             {message.replyTo && (
               <div
                 onClick={() => {
@@ -435,11 +510,7 @@ const MessageItem = ({ message, isOwn, onReply }) => {
                 </p>
               </div>
             )}
-
-            {/* Main content */}
             {renderContent()}
-
-            {/* Time + tick row */}
             <div className={`flex items-center justify-end gap-1 mt-1.5 select-none`}
               style={{ color: isOwn ? 'rgba(255,255,255,0.55)' : 'hsl(var(--sv-text-3))' }}>
               {message.edited && <span className="text-[10px]">edited</span>}
@@ -448,8 +519,6 @@ const MessageItem = ({ message, isOwn, onReply }) => {
             </div>
           </div>
         </div>
-
-        {/* Reactions row */}
         {message.reactions?.length > 0 && (
           <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
             {message.reactions.map((r, i) => (

@@ -33,6 +33,8 @@ export const ChatProvider = ({ children, token, userId }) => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [groupInvite, setGroupInvite] = useState(null); // pending group invite
+  const [tasks, setTasks] = useState([]);
+  const [statuses, setStatuses] = useState([]);
   const [conversationWallpapers, setConversationWallpapers] = useState(() => {
     const saved = localStorage.getItem("conversationWallpapers");
     return saved ? JSON.parse(saved) : {};
@@ -90,9 +92,13 @@ export const ChatProvider = ({ children, token, userId }) => {
         }
         return conv;
       });
-      return updated.sort(
-        (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
-      );
+      return updated.sort((a, b) => {
+        const aPinned = a.pinnedBy?.some(id => id === userId || id._id === userId);
+        const bPinned = b.pinnedBy?.some(id => id === userId || id._id === userId);
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+      });
     });
   }, [userId]);
 
@@ -248,6 +254,12 @@ export const ChatProvider = ({ children, token, userId }) => {
       });
     });
 
+    socketService.on("task-reminder", (data) => {
+      setNotification({ content: data.message, sender: { name: "Reminder" } });
+      setTimeout(() => setNotification(null), 8000);
+      playNotificationSound();
+    });
+
     socketService.on("message-status-updated", ({ messageId, status }) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === messageId ? { ...msg, status } : msg)),
@@ -331,6 +343,10 @@ export const ChatProvider = ({ children, token, userId }) => {
           return msg;
         }),
       );
+    });
+
+    socketService.on("status-updated", () => {
+      fetchStatuses();
     });
 
     socketService.on("user-status-changed", ({ userId: changedUserId, status, lastSeen }) => {
@@ -442,6 +458,8 @@ export const ChatProvider = ({ children, token, userId }) => {
       socketService.connect(token);
       socketService.emit("setup", userId);
       fetchConversations();
+      fetchTasks();
+      fetchStatuses();
     }
 
     return () => {
@@ -803,6 +821,213 @@ export const ChatProvider = ({ children, token, userId }) => {
     }
   }, [token]);
 
+  const clearChat = useCallback(async (conversationId) => {
+    if (!token) return { success: false };
+    try {
+      const response = await api.clearChat(conversationId, token);
+      if (response.success) {
+        setMessages([]);
+        messagesCache.current[conversationId] = [];
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to clear chat:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const editMessage = useCallback(async (messageId, newContent) => {
+    if (!token) return { success: false };
+    try {
+      const response = await api.editMessage(messageId, newContent, token);
+      if (response.success) {
+        setMessages(prev => prev.map(m =>
+          m.id === messageId ? { ...m, content: newContent, edited: true } : m
+        ));
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to edit message:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const forwardMessage = useCallback(async (messageId, conversationIds) => {
+    if (!token) return { success: false };
+    try {
+      const response = await api.forwardMessage(messageId, conversationIds, token);
+      return { success: response.success };
+    } catch (error) {
+      console.error("❌ Failed to forward message:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const fetchTasks = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await api.getTasks(token);
+      if (res.success) setTasks(res.data);
+    } catch (error) {
+      console.error("❌ Failed to fetch tasks:", error);
+    }
+  }, [token]);
+
+  const addTask = useCallback(async (taskData) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.createTask(taskData, token);
+      if (res.success) {
+        setTasks(prev => [res.data, ...prev]);
+        return { success: true, data: res.data };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to add task:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const toggleTaskStatus = useCallback(async (taskId, completed) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.updateTask(taskId, { status: completed ? 'completed' : 'pending' }, token);
+      if (res.success) {
+        setTasks(prev => prev.map(t => t._id === taskId ? res.data : t));
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to toggle task:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const removeTask = useCallback(async (taskId) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.deleteTask(taskId, token);
+      if (res.success) {
+        setTasks(prev => prev.filter(t => t._id !== taskId));
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to remove task:", error);
+      return { success: false };
+    }
+  }, [token]);
+
+  const togglePin = useCallback(async (conversationId) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.togglePin(conversationId, token);
+      if (res.success) {
+        setConversations(prev => {
+          const updated = prev.map(c => c._id === conversationId ? { ...c, pinnedBy: res.data.pinnedBy } : c);
+          return updated.sort((a, b) => {
+            const aPinned = a.pinnedBy?.some(id => id === userId || id._id === userId);
+            const bPinned = b.pinnedBy?.some(id => id === userId || id._id === userId);
+            if (aPinned && !bPinned) return -1;
+            if (!aPinned && bPinned) return 1;
+            return new Date(b.updatedAt) - new Date(a.updatedAt);
+          });
+        });
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token, userId]);
+
+  const toggleArchive = useCallback(async (conversationId) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.toggleArchive(conversationId, token);
+      if (res.success) {
+        setConversations(prev => prev.map(c => c._id === conversationId ? { ...c, archivedBy: res.data.archivedBy } : c));
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token]);
+
+  const searchMessages = useCallback(async (query, conversationId = null) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.searchMessages(query, token, conversationId);
+      return res;
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token]);
+
+  const getConversationMedia = useCallback(async (conversationId, type) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.getConversationMedia(conversationId, type, token);
+      return res;
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token]);
+
+  const fetchStatuses = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await api.getStatuses(token);
+      if (res.success) setStatuses(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [token]);
+
+  const addStatus = useCallback(async (data) => {
+    if (!token) return { success: false };
+    try {
+      const res = await api.createStatus(data, token);
+      if (res.success) {
+        setStatuses(prev => {
+          const userStatus = prev.find(s => s.user._id === userId);
+          if (userStatus) {
+            return prev.map(s => s.user._id === userId ? { ...s, items: [res.data, ...s.items] } : s);
+          }
+          return [{ user: res.data.user, items: [res.data] }, ...prev];
+        });
+        return { success: true };
+      }
+      return { success: false };
+    } catch (err) {
+      return { success: false };
+    }
+  }, [token, userId]);
+
+  const setStatusSeen = useCallback(async (statusId) => {
+    if (!token) return;
+    try {
+      await api.markStatusSeen(statusId, token);
+      // Optional: Local update
+    } catch (err) { }
+  }, [token]);
+
+  const removeStatus = useCallback(async (statusId) => {
+    if (!token) return;
+    try {
+      const res = await api.deleteStatus(statusId, token);
+      if (res.success) {
+        setStatuses(prev => prev.map(group => ({
+          ...group,
+          items: group.items.filter(item => item._id !== statusId)
+        })).filter(group => group.items.length > 0));
+      }
+    } catch (err) { }
+  }, [token]);
+
   const value = {
     conversations,
     selectedConversation,
@@ -814,8 +1039,11 @@ export const ChatProvider = ({ children, token, userId }) => {
     recordingVoice,
     sendMessage,
     sendMediaMessage,
+    editMessage,
+    forwardMessage,
     createNewConversation,
     deleteMessage,
+    clearChat,
     handleTyping,
     handleStopTyping,
     fetchConversations,
@@ -846,6 +1074,22 @@ export const ChatProvider = ({ children, token, userId }) => {
     setGroupInvite,
     updateGroupInfo,
     respondGroupInvite,
+    tasks,
+    fetchTasks,
+    addTask,
+    toggleTaskStatus,
+    removeTask,
+    togglePin,
+    toggleArchive,
+    searchMessages,
+    getConversationMedia,
+    statuses,
+    fetchStatuses,
+    addStatus,
+    setStatusSeen,
+    removeStatus,
+    updateEphemeralSettings: (id, data) => api.updateEphemeralSettings(id, data, token),
+    markAsRead: (id) => api.markAsRead(id, token),
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

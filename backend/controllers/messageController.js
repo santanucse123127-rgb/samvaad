@@ -91,7 +91,8 @@ export const sendMessage = async (req, res) => {
       codeLanguage,
       isEncrypted,
       unlockAt,
-      unlockConditions
+      unlockConditions,
+      isViewOnce
     } = req.body;
 
     const conversation = await Conversation.findOne({
@@ -118,7 +119,14 @@ export const sendMessage = async (req, res) => {
       isEncrypted: isEncrypted || false,
       unlockAt: unlockAt || null,
       unlockConditions: unlockConditions ? JSON.parse(unlockConditions) : null,
+      isViewOnce: isViewOnce === true || isViewOnce === 'true' || false,
     };
+
+    // Generate expiresAt if ephemeral messages are enabled
+    if (conversation.ephemeralSettings?.enabled) {
+      const duration = conversation.ephemeralSettings.duration || 86400;
+      messageData.expiresAt = new Date(Date.now() + duration * 1000);
+    }
 
     // Handle Polls
     if (type === 'poll') {
@@ -141,6 +149,12 @@ export const sendMessage = async (req, res) => {
 
     // Create message
     const message = await Message.create(messageData);
+
+    // Process Milestone Locks
+    await Message.updateMany(
+      { conversationId, 'unlockConditions.type': 'count', 'unlockConditions.messageCount': { $gt: 0 } },
+      { $inc: { 'unlockConditions.messageCount': -1 } }
+    );
 
     // If scheduled, don't update conversation lastMessage or notify yet
     if (message.isScheduled) {
@@ -251,7 +265,7 @@ export const uploadMedia = async (req, res) => {
       });
     }
 
-    const { conversationId, type, replyTo, duration, unlockAt, unlockConditions } = req.body;
+    const { conversationId, type, replyTo, duration, unlockAt, unlockConditions, isViewOnce } = req.body;
 
     const conversation = await Conversation.findOne({
       _id: conversationId,
@@ -279,7 +293,7 @@ export const uploadMedia = async (req, res) => {
     const result = await uploadToCloudinary(req.file.buffer, folder);
 
     // Create message with media
-    const message = await Message.create({
+    const messageData = {
       conversationId,
       sender: req.user._id,
       content: type === 'file' ? req.file.originalname : result.url,
@@ -293,8 +307,23 @@ export const uploadMedia = async (req, res) => {
       replyTo: replyTo || null,
       unlockAt: unlockAt || null,
       unlockConditions: unlockConditions ? JSON.parse(unlockConditions) : null,
+      isViewOnce: isViewOnce === true || isViewOnce === 'true' || false,
       status: "sent",
-    });
+    };
+
+    // Ephemeral
+    if (conversation.ephemeralSettings?.enabled) {
+      const durationVal = conversation.ephemeralSettings.duration || 86400;
+      messageData.expiresAt = new Date(Date.now() + durationVal * 1000);
+    }
+
+    const message = await Message.create(messageData);
+
+    // Process Milestone Locks
+    await Message.updateMany(
+      { conversationId, 'unlockConditions.type': 'count', 'unlockConditions.messageCount': { $gt: 0 } },
+      { $inc: { 'unlockConditions.messageCount': -1 } }
+    );
 
     // Update conversation
     conversation.lastMessage = message._id;
@@ -387,6 +416,16 @@ export const markAsRead = async (req, res) => {
 
     // Mark as read
     await message.markAsRead(req.user._id);
+
+    // Handle View Once
+    if (message.isViewOnce) {
+      message.content = "One-time view content已查看"; // You can use a specific placeholder
+      message.mediaUrl = null;
+      message.thumbnail = null;
+      message.fileName = null;
+      message.deleted = true; // Mark as deleted so it can be filtered or handled in UI
+      await message.save();
+    }
 
     // Update conversation unread count
     const conversation = await Conversation.findById(message.conversationId);
@@ -660,5 +699,198 @@ export const votePoll = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+// @desc    Clear all messages in a conversation for the current user
+// @route   DELETE /api/messages/conversation/:conversationId/clear
+// @access  Private
+export const clearMessages = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    // Verify user is part of conversation
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: req.user._id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found',
+      });
+    }
+
+    // Add user to deletedFor of all messages in this conversation
+    await Message.updateMany(
+      {
+        conversationId,
+        deletedFor: { $ne: req.user._id }
+      },
+      {
+        $addToSet: { deletedFor: req.user._id }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Chat cleared successfully',
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Edit message
+// @route   PUT /api/messages/:id
+// @access  Private
+export const editMessage = async (req, res) => {
+  try {
+    const { content } = req.body;
+    const message = await Message.findById(req.params.id);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found',
+      });
+    }
+
+    // Verify sender
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to edit this message',
+      });
+    }
+
+    // Messages can only be edited within 1 hour
+    const messageAge = Date.now() - new Date(message.createdAt).getTime();
+    const oneHour = 60 * 60 * 1000;
+    if (messageAge > oneHour) {
+      return res.status(400).json({
+        success: false,
+        message: 'Messages can only be edited within 1 hour',
+      });
+    }
+
+    message.content = content;
+    message.edited = true;
+    message.editedAt = Date.now();
+    await message.save();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      const conversation = await Conversation.findById(message.conversationId);
+      io.to(conversation._id.toString()).emit('message-edited', {
+        messageId: message._id,
+        conversationId: conversation._id,
+        newContent: content,
+        editedAt: message.editedAt,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Message edited successfully',
+      data: message,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Search messages
+// @route   GET /api/messages/search/all
+// @access  Private
+export const searchMessages = async (req, res) => {
+  try {
+    const { q, conversationId } = req.query;
+    if (!q) {
+      return res.status(400).json({ success: false, message: 'Search query is required' });
+    }
+
+    const query = {
+      content: { $regex: q, $options: 'i' },
+      deletedFor: { $ne: req.user._id },
+      deletedForEveryone: false
+    };
+
+    if (conversationId) {
+      query.conversationId = conversationId;
+    } else {
+      // For global search
+      const userConversations = await Conversation.find({ participants: req.user._id }).select('_id');
+      const conversationIds = userConversations.map(c => c._id);
+      query.conversationId = { $in: conversationIds };
+    }
+
+    const messages = await Message.find(query)
+      .populate('sender', 'name avatar')
+      .populate('conversationId', 'groupName type participants')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json({
+      success: true,
+      data: messages
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get all media, docs, and links for a conversation
+// @route   GET /api/messages/:conversationId/media
+// @access  Private
+export const getConversationMedia = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { type } = req.query; // 'media' (image/video), 'file', 'link'
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: req.user._id
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const query = {
+      conversationId,
+      deletedFor: { $ne: req.user._id },
+      deletedForEveryone: false
+    };
+
+    if (type === 'media') {
+      query.type = { $in: ['image', 'video'] };
+    } else if (type === 'file') {
+      query.type = 'file';
+    } else if (type === 'link') {
+      query.content = { $regex: /https?:\/\/[^\s]+/ };
+    }
+
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .select('content type mediaUrl mediaType fileName fileSize createdAt duration thumbnail');
+
+    res.json({
+      success: true,
+      data: messages
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
