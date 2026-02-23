@@ -64,7 +64,7 @@ export const ChatProvider = ({ children, token, userId }) => {
     if (Notification.permission === "granted") {
       const notification = new Notification(`New message from ${message.sender.name}`, {
         body: message.content,
-        icon: message.sender.avatar || "/logo.png",
+        icon: message.sender.avatar || "/icon-192.png",
       });
 
       notification.onclick = () => {

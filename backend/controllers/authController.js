@@ -28,13 +28,14 @@ export const register = async (req, res) => {
     });
 
     if (user) {
-      const userObj = user.toObject ? user.toObject() : { ...user._doc };
-      delete userObj.password;
-      userObj.token = generateToken(user._id);
+      const token = generateToken(user._id);
+      const userDetails = user.toObject ? user.toObject() : { ...user._doc };
+      delete userDetails.password;
+      userDetails.token = token;
 
       res.status(201).json({
         success: true,
-        data: userObj,
+        data: userDetails,
       });
     }
   } catch (error) {
