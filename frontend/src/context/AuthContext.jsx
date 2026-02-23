@@ -193,11 +193,43 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser(userData);
       socketService.connect(newToken);
-      toast({ title: "Login Successful", description: `Welcome back, ${userData.username || "User"}!`, variant: "default" });
+      toast({ title: "Login Successful", description: `Welcome back, ${userData.name || userData.username || "User"}!`, variant: "default" });
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";
       toast({ title: "Login Failed", description: message, variant: "destructive" });
+      return { success: false, message };
+    }
+  }, []);
+
+  const sendOTP = useCallback(async (phone) => {
+    try {
+      const response = await authAPI.sendOTP(phone);
+      if (response.data.success) {
+        toast({ title: "OTP Sent", description: "Verification code sent to your phone.", variant: "default" });
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to send OTP";
+      toast({ title: "Error", description: message, variant: "destructive" });
+      return { success: false, message };
+    }
+  }, []);
+
+  const verifyOTP = useCallback(async (data) => {
+    try {
+      const response = await authAPI.verifyOTP(data);
+      const { token: newToken, ...userData } = response.data.data;
+      localStorage.setItem("token", newToken);
+      setToken(newToken);
+      setUser(userData);
+      socketService.connect(newToken);
+      toast({ title: "Verification Successful", description: `Welcome, ${userData.name || "User"}!`, variant: "default" });
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.message || "Invalid OTP";
+      toast({ title: "Verification Failed", description: message, variant: "destructive" });
       return { success: false, message };
     }
   }, []);
@@ -306,9 +338,9 @@ export const AuthProvider = ({ children }) => {
   const unlockApp = useCallback(() => setIsLocked(false), []);
 
   const value = React.useMemo(() => ({
-    user, loading, token, register, login, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
+    user, loading, token, register, login, sendOTP, verifyOTP, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
     isLocked, updateAppLock, unlockApp
-  }), [user, loading, token, register, login, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
+  }), [user, loading, token, register, login, sendOTP, verifyOTP, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
     isLocked, updateAppLock, unlockApp]);
 
   return (

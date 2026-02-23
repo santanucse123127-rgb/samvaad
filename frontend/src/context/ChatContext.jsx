@@ -9,6 +9,7 @@ import {
 import socketService from "../services/socket";
 import api from "../services/chatAPI";
 import { deriveSharedSecret, encryptMessage, decryptMessage } from "../utils/crypto";
+import { useNotifications } from "../components/NotificationProvider";
 
 const ChatContext = createContext();
 
@@ -21,6 +22,7 @@ export const useChat = () => {
 };
 
 export const ChatProvider = ({ children, token, userId }) => {
+  const { addNotification } = useNotifications();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -78,29 +80,51 @@ export const ChatProvider = ({ children, token, userId }) => {
   const updateConversationsList = useCallback((message) => {
     setConversations((prev) => {
       const currentConv = selectedConversationRef.current;
+      const conversationId = message.conversationId?._id || message.conversationId;
+
+      let found = false;
       const updated = prev.map((conv) => {
-        if (conv._id === message.conversationId) {
-          const isBackground = !currentConv || currentConv._id !== message.conversationId;
+        if (conv._id === conversationId) {
+          found = true;
+          const isBackground = !currentConv || currentConv._id !== conversationId;
+          const isMessageFromOther = message.sender?._id ? message.sender._id !== userId : message.sender !== 'user';
+
+          if (isBackground && isMessageFromOther) {
+            addNotification({
+              title: message.sender.name || "New Message",
+              message: message.content || (message.type !== 'text' ? `Sent a ${message.type}` : ""),
+              avatar: message.sender.avatar,
+              type: 'message',
+              onClick: () => {
+                // Focus conversation logic if possible
+                setSelectedConversation(conv);
+              }
+            });
+          }
+
           return {
             ...conv,
             lastMessage: message,
-            updatedAt: new Date(),
-            unreadCount: isBackground
+            updatedAt: new Date(message.createdAt || Date.now()),
+            unreadCount: (isBackground && isMessageFromOther)
               ? { ...(conv.unreadCount || {}), [userId]: (conv.unreadCount?.[userId] || 0) + 1 }
               : conv.unreadCount
           };
         }
         return conv;
       });
+
+      // If it's a new conversation not in list yet, we'll wait for the "joined-group" or "new-conversation" event
+      // but for reordering existing ones:
       return updated.sort((a, b) => {
-        const aPinned = a.pinnedBy?.some(id => id === userId || id._id === userId);
-        const bPinned = b.pinnedBy?.some(id => id === userId || id._id === userId);
+        const aPinned = a.pinnedBy?.some(id => (id._id || id) === userId);
+        const bPinned = b.pinnedBy?.some(id => (id._id || id) === userId);
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
         return new Date(b.updatedAt) - new Date(a.updatedAt);
       });
     });
-  }, [userId]);
+  }, [userId, addNotification]);
 
   // Helper: Transform Message
   const transformMessage = useCallback(
@@ -213,6 +237,11 @@ export const ChatProvider = ({ children, token, userId }) => {
           socketService.emit("mark-messages-read", {
             conversationId: convId,
           });
+
+          // Locally reset unread count for this conversation since it's open
+          setConversations(prev => prev.map(c =>
+            c._id === convId ? { ...c, unreadCount: { ...c.unreadCount, [userId]: 0 } } : c
+          ));
         }
       }
 
@@ -500,6 +529,11 @@ export const ChatProvider = ({ children, token, userId }) => {
     socketService.emit("mark-messages-read", {
       conversationId: selectedConversation._id,
     });
+
+    // Locally reset unread count
+    setConversations(prev => prev.map(c =>
+      c._id === selectedConversation._id ? { ...c, unreadCount: { ...c.unreadCount, [userId]: 0 } } : c
+    ));
   }, [selectedConversation]);
 
   // API Actions

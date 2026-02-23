@@ -5,10 +5,14 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight, MessageSquare, Sparkles, Smartphon
 import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, sendOTP, verifyOTP } = useAuth();
   const navigate = useNavigate();
+  const [loginMode, setLoginMode] = useState("email"); // "email" or "phone"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -17,17 +21,38 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    const result = await login({ email, password });
-    setIsLoading(false);
-    if (result.success) {
-      navigate("/chat", { replace: true });
+
+    if (loginMode === "email") {
+      const result = await login({ email, password });
+      setIsLoading(false);
+      if (result.success) {
+        navigate("/chat", { replace: true });
+      } else {
+        setError(result.message || "Login failed. Please try again.");
+      }
     } else {
-      setError(result.message || "Login failed. Please try again.");
+      // Phone mode
+      if (!otpSent) {
+        const result = await sendOTP(phone);
+        setIsLoading(false);
+        if (result.success) {
+          setOtpSent(true);
+        } else {
+          setError(result.message || "Failed to send OTP.");
+        }
+      } else {
+        const result = await verifyOTP({ phone, otp });
+        setIsLoading(false);
+        if (result.success) {
+          navigate("/chat", { replace: true });
+        } else {
+          setError(result.message || "Invalid OTP.");
+        }
+      }
     }
   };
 
   const handleGoogleLogin = () => {
-    // Google OAuth — opens Google sign-in in the same tab via backend redirect
     window.location.href = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/auth/google`;
   };
 
@@ -66,6 +91,22 @@ const Login = () => {
             </p>
           </div>
 
+          {/* Login Mode Toggle */}
+          <div className="flex p-1 bg-white/5 rounded-xl mb-6">
+            <button
+              onClick={() => { setLoginMode("email"); setOtpSent(false); setError(""); }}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "email" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
+            >
+              Email
+            </button>
+            <button
+              onClick={() => { setLoginMode("phone"); setOtpSent(false); setError(""); }}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "phone" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
+            >
+              Phone
+            </button>
+          </div>
+
           {/* Error */}
           {error && (
             <motion.div
@@ -78,62 +119,114 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="sv-input pl-10"
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                />
-              </div>
-            </div>
+            {loginMode === "email" ? (
+              <>
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="sv-input pl-10"
+                      placeholder="you@example.com"
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
-                  Password
-                </label>
-                <Link to="/forgot-password" className="text-xs font-medium hover:underline" style={{ color: 'hsl(var(--sv-accent))' }}>
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="sv-input pl-10 pr-10"
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: 'hsl(var(--sv-text-3))' }}>
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      Password
+                    </label>
+                    <Link to="/forgot-password" className="text-xs font-medium hover:underline" style={{ color: 'hsl(var(--sv-accent))' }}>
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="sv-input pl-10 pr-10"
+                      placeholder="••••••••"
+                      required
+                      autoComplete="current-password"
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                      style={{ color: 'hsl(var(--sv-text-3))' }}>
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {!otpSent ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
+                      <input
+                        id="phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="sv-input pl-10"
+                        placeholder="+91 98765 43210"
+                        required
+                        autoComplete="tel"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider block text-center" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      Enter Verification Code
+                    </label>
+                    <div className="flex justify-center">
+                      <input
+                        id="otp"
+                        type="text"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        className="sv-input text-center text-2xl tracking-[0.5em] font-bold h-14 w-full max-w-[200px]"
+                        placeholder="••••••"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[10px] text-center opacity-50">
+                      Code sent to {phone}. <button type="button" onClick={() => setOtpSent(false)} className="text-sv-accent font-bold hover:underline">Change</button>
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Submit */}
             <button id="login-submit" type="submit" className="sv-btn-primary w-full mt-2" disabled={isLoading}>
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>Sign In <ArrowRight className="w-4 h-4" /></>
+                <>
+                  {loginMode === "email" ? "Sign In" : (otpSent ? "Verify & Login" : "Send OTP")}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
               )}
             </button>
           </form>

@@ -20,6 +20,8 @@ API.interceptors.request.use((config) => {
 export const authAPI = {
   register: (data) => API.post('/auth/register', data),
   login: (data) => API.post('/auth/login', data),
+  sendOTP: (phone) => API.post('/auth/send-otp', { phone }),
+  verifyOTP: (data) => API.post('/auth/verify-otp', data),
   getMe: () => API.get('/auth/me'),
   logout: () => API.post('/auth/logout'),
 };

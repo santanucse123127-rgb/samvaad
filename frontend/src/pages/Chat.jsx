@@ -139,8 +139,11 @@ const Chat = ({ token }) => {
 
   // Compute stats
   const unreadChatsCount = useMemo(() =>
-    conversations.filter(c => !c.archivedBy?.includes(userId))
-      .reduce((acc, c) => acc + (c.unreadCount?.[userId] || 0), 0)
+    conversations.reduce((acc, c) => {
+      const isArchived = c.archivedBy?.some(id => (id._id || id) === userId);
+      // Count for the main badge if not archived
+      return !isArchived ? acc + (c.unreadCount?.[userId] || 0) : acc;
+    }, 0)
     , [conversations, userId]);
 
   const archivedCount = useMemo(() =>

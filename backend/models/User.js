@@ -16,11 +16,19 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    default: "",
+    unique: true,
+    sparse: true,
+  },
+  otp: {
+    type: String,
+    select: false,
+  },
+  otpExpires: {
+    type: Date,
+    select: false,
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
     minlength: 6,
     select: false,
   },
