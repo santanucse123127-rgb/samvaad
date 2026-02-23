@@ -108,7 +108,7 @@ export const ChatProvider = ({ children, token, userId }) => {
             updatedAt: new Date(message.createdAt || Date.now()),
             unreadCount: (isBackground && isMessageFromOther)
               ? { ...(conv.unreadCount || {}), [userId]: (conv.unreadCount?.[userId] || 0) + 1 }
-              : conv.unreadCount
+              : { ...(conv.unreadCount || {}), [userId]: 0 }
           };
         }
         return conv;
@@ -301,6 +301,12 @@ export const ChatProvider = ({ children, token, userId }) => {
           msg.id === messageId ? { ...msg, status: "read", readAt } : msg,
         ),
       );
+    });
+
+    socketService.on("unread-count-reset", ({ conversationId }) => {
+      setConversations(prev => prev.map(c =>
+        c._id === conversationId ? { ...c, unreadCount: { ...c.unreadCount, [userId]: 0 } } : c
+      ));
     });
 
     socketService.on("message-edited", ({ messageId, newContent, editedAt }) => {
@@ -511,6 +517,8 @@ export const ChatProvider = ({ children, token, userId }) => {
 
   // Effect: Handle Conversation Change
   useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+
     if (!selectedConversation) return;
 
     if (prevConversationRef.current) {
@@ -534,7 +542,7 @@ export const ChatProvider = ({ children, token, userId }) => {
     setConversations(prev => prev.map(c =>
       c._id === selectedConversation._id ? { ...c, unreadCount: { ...c.unreadCount, [userId]: 0 } } : c
     ));
-  }, [selectedConversation]);
+  }, [selectedConversation, userId]);
 
   // API Actions
   const fetchConversations = async () => {

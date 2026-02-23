@@ -478,11 +478,8 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className={`relative rounded-2xl px-3.5 py-2.5 shadow-md ${isOwn ? 'rounded-br-sm text-white' : 'rounded-bl-sm'}`}
-            style={isOwn
-              ? { background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))', boxShadow: '0 4px 16px -4px hsl(var(--sv-accent)/0.35)', maxWidth: '100%' }
-              : { background: 'hsl(var(--sv-surface-2))', border: '1px solid hsl(var(--sv-border)/0.6)', color: 'hsl(var(--sv-text))', maxWidth: '100%' }
-            }>
+          <div className={`relative px-3.5 py-2.5 shadow-md ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-sm text-white' : 'sv-bubble-other rounded-2xl rounded-bl-sm'} max-w-full`}
+          >
             {!isOwn && message.name && (
               <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--sv-accent))' }}>{message.name}</p>
             )}

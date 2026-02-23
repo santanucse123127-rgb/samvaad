@@ -287,6 +287,8 @@ export const initializeSocket = (io) => {
           const conversation = await Conversation.findById(conversationId);
           if (conversation) {
             await conversation.resetUnread(socket.userId);
+            // Notify all devices of the current user
+            io.to(socket.userId).emit("unread-count-reset", { conversationId });
           }
         } catch (error) {
           console.error("Error marking messages as read:", error);

@@ -552,7 +552,7 @@ const Chat = ({ token }) => {
         </AnimatePresence>
 
         {/* ── Nav Rail (Slim Sidebar) ── */}
-        <aside className="sv-nav-rail hidden md:flex">
+        <aside className="sv-nav-rail flex">
           <div className="flex flex-col items-center gap-4 w-full pt-4">
             {/* Chats */}
             <div className="relative group">
@@ -688,7 +688,7 @@ const Chat = ({ token }) => {
         {/* ── SidebarPanel (Conversations) ── */}
         <aside
           className={`sv-sidebar-v2 z-20 transition-transform duration-300 ease-in-out
-          fixed md:relative inset-y-0 left-0 h-full md:h-auto
+          fixed md:relative inset-y-0 left-[60px] md:left-0 h-full md:h-auto
           ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
           {/* Sidebar Header */}
@@ -927,8 +927,8 @@ const Chat = ({ token }) => {
                 {/* Chat Header (V2 Premium) */}
                 <header className="sv-chat-header-v2">
                   <div className="flex items-center gap-4 w-full">
-                    <button className="md:hidden sv-icon-btn w-10 h-10 rounded-xl" onClick={() => setMobileShowSidebar(true)}>
-                      <ChevronDown size={20} className="rotate-90" />
+                    <button className="md:hidden sv-icon-btn w-10 h-10 rounded-xl mr-1" onClick={() => setMobileShowSidebar(true)}>
+                      <ChevronLeft size={20} />
                     </button>
 
                     <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
@@ -959,7 +959,7 @@ const Chat = ({ token }) => {
                             </span>
                           ) : selectedConversation.type === "group"
                             ? `${selectedConversation.participants?.length || 0} members`
-                            : isUserOnline(selectedConversation) ? <span className="text-sv-online">Active now</span> : fmtLastSeen(getLastSeen(selectedConversation))
+                            : isUserOnline(selectedConversation) ? <span className="text-sv-online">Online</span> : fmtLastSeen(getLastSeen(selectedConversation))
                           }
                         </p>
                       </div>
@@ -1084,8 +1084,8 @@ const Chat = ({ token }) => {
                 </div>
 
                 {/* Floating Input Area */}
-                <div className="px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-[hsl(var(--sv-bg))] via-[hsl(var(--sv-bg))/0.8] to-transparent">
-                  <div className="max-w-4xl mx-auto flex flex-col gap-2">
+                <div className="px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-[hsl(var(--sv-bg))] via-[hsl(var(--sv-bg))/0.4] to-transparent sticky bottom-0">
+                  <div className="max-w-3xl mx-auto flex flex-col gap-2">
 
                     {/* Previews (Reply/Upload) */}
                     <AnimatePresence>
@@ -1195,16 +1195,20 @@ const Chat = ({ token }) => {
                         {isRecording ? (
                           <div className="flex items-center gap-3 pr-2">
                             <span className="text-xs font-bold tabular-nums text-red-500 animate-pulse">{fmtDuration(recordingDuration)}</span>
-                            <button type="button" onClick={() => stopRecording(true)} className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30">
-                              <Send size={16} />
+                            <button type="button" onClick={() => stopRecording(true)} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30">
+                              <Send size={18} />
                             </button>
                           </div>
                         ) : (newMessage.trim() || uploadPreview) ? (
-                          <button type="submit" className="w-10 h-10 rounded-xl bg-sv-accent flex items-center justify-center text-white shadow-lg shadow-sv-accent/30 hover:scale-105 transition-transform active:scale-95">
+                          <button
+                            type="submit"
+                            style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))' }}
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-white shadow-lg shadow-sv-accent/40 transition-transform active:scale-95 flex-shrink-0"
+                          >
                             <Send size={18} />
                           </button>
                         ) : (
-                          <button type="button" onClick={startRecording} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/5 text-white/50 hover:text-white">
+                          <button type="button" onClick={startRecording} className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-white/10 text-white/50 hover:text-white bg-white/5">
                             <Mic size={20} />
                           </button>
                         )}
