@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 const Login = () => {
   const { login, sendOTP, verifyOTP } = useAuth();
   const navigate = useNavigate();
-  const [loginMode, setLoginMode] = useState("email"); // "email" or "phone"
+  const [loginMode, setLoginMode] = useState("email"); // "email", "phone", or "email-otp"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
@@ -30,10 +30,10 @@ const Login = () => {
       } else {
         setError(result.message || "Login failed. Please try again.");
       }
-    } else {
+    } else if (loginMode === "phone") {
       // Phone mode
       if (!otpSent) {
-        const result = await sendOTP(phone);
+        const result = await sendOTP({ phone });
         setIsLoading(false);
         if (result.success) {
           setOtpSent(true);
@@ -42,6 +42,25 @@ const Login = () => {
         }
       } else {
         const result = await verifyOTP({ phone, otp });
+        setIsLoading(false);
+        if (result.success) {
+          navigate("/chat", { replace: true });
+        } else {
+          setError(result.message || "Invalid OTP.");
+        }
+      }
+    } else if (loginMode === "email-otp") {
+      // Email OTP mode
+      if (!otpSent) {
+        const result = await sendOTP({ email });
+        setIsLoading(false);
+        if (result.success) {
+          setOtpSent(true);
+        } else {
+          setError(result.message || "Failed to send OTP.");
+        }
+      } else {
+        const result = await verifyOTP({ email, otp });
         setIsLoading(false);
         if (result.success) {
           navigate("/chat", { replace: true });
@@ -95,13 +114,19 @@ const Login = () => {
           <div className="flex p-1 bg-white/5 rounded-xl mb-6">
             <button
               onClick={() => { setLoginMode("email"); setOtpSent(false); setError(""); }}
-              className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "email" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "email" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
             >
-              Email
+              Password
+            </button>
+            <button
+              onClick={() => { setLoginMode("email-otp"); setOtpSent(false); setError(""); }}
+              className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "email-otp" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
+            >
+              Email OTP
             </button>
             <button
               onClick={() => { setLoginMode("phone"); setOtpSent(false); setError(""); }}
-              className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "phone" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${loginMode === "phone" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"}`}
             >
               Phone
             </button>
@@ -171,7 +196,7 @@ const Login = () => {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : loginMode === "phone" ? (
               <>
                 {!otpSent ? (
                   <div className="space-y-1.5">
@@ -216,6 +241,51 @@ const Login = () => {
                   </div>
                 )}
               </>
+            ) : (
+              <>
+                {!otpSent ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(var(--sv-text-3))' }} />
+                      <input
+                        id="email-otp-input"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="sv-input pl-10"
+                        placeholder="you@example.com"
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider block text-center" style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      Enter Verification Code
+                    </label>
+                    <div className="flex justify-center">
+                      <input
+                        id="otp-email"
+                        type="text"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        className="sv-input text-center text-2xl tracking-[0.5em] font-bold h-14 w-full max-w-[200px]"
+                        placeholder="••••••"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[10px] text-center opacity-50">
+                      Code sent to {email}. <button type="button" onClick={() => setOtpSent(false)} className="text-sv-accent font-bold hover:underline">Change</button>
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Submit */}
@@ -224,7 +294,7 @@ const Login = () => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {loginMode === "email" ? "Sign In" : (otpSent ? "Verify & Login" : "Send OTP")}
+                  {loginMode === "email" ? "Sign In" : (otpSent ? "Verify & Login" : "Send Code")}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}

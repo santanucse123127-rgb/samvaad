@@ -202,11 +202,12 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const sendOTP = useCallback(async (phone) => {
+  const sendOTP = useCallback(async (data) => {
     try {
-      const response = await authAPI.sendOTP(phone);
+      const response = await authAPI.sendOTP(data);
       if (response.data.success) {
-        toast({ title: "OTP Sent", description: "Verification code sent to your phone.", variant: "default" });
+        const type = data.phone ? "phone" : "email";
+        toast({ title: "OTP Sent", description: `Verification code sent to your ${type}.`, variant: "default" });
         return { success: true };
       }
       return { success: false, message: response.data.message };

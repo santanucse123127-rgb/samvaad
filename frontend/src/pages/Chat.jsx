@@ -171,6 +171,13 @@ const Chat = ({ token }) => {
   const audioChunksRef = useRef([]);
   const recordingIntervalRef = useRef(null);
 
+  // Ensure mobile sidebar is open if no chat selected on mobile
+  useEffect(() => {
+    if (!selectedConversation && window.innerWidth <= 768) {
+      setMobileShowSidebar(true);
+    }
+  }, [selectedConversation]);
+
   // Force relative-time re-render every minute
   useEffect(() => {
     const t = setInterval(() => setTick(x => x + 1), 60000);
@@ -552,7 +559,7 @@ const Chat = ({ token }) => {
         </AnimatePresence>
 
         {/* ── Nav Rail (Slim Sidebar) ── */}
-        <aside className="sv-nav-rail flex">
+        <aside className={`sv-nav-rail fixed md:relative z-40 transition-transform duration-300 ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <div className="flex flex-col items-center gap-4 w-full pt-4">
             {/* Chats */}
             <div className="relative group">
@@ -687,8 +694,9 @@ const Chat = ({ token }) => {
 
         {/* ── SidebarPanel (Conversations) ── */}
         <aside
-          className={`sv-sidebar-v2 z-20 transition-transform duration-300 ease-in-out
+          className={`sv-sidebar-v2 z-30 transition-all duration-300 ease-in-out
           fixed md:relative inset-y-0 left-[60px] md:left-0 h-full md:h-auto
+          w-[calc(100vw-60px)] md:w-[320px]
           ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
           {/* Sidebar Header */}
@@ -914,7 +922,9 @@ const Chat = ({ token }) => {
         </aside>
 
         {/* ═══════ MAIN CHAT AREA ═══════ */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <main className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300
+          ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 bg-[hsl(var(--sv-bg))] flex'}`}
+        >
           <CallInterface />
 
           {selectedConversation ? (

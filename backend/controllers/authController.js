@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import { sendSMS } from "../utils/sms.js";
+import { sendEmail } from "../utils/email.js";
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -133,15 +134,15 @@ export const logout = async (req, res) => {
     });
   }
 };
-// @desc    Send OTP to phone
+// @desc    Send OTP via phone or email
 // @route   POST /api/auth/send-otp
 // @access  Public
 export const sendOTP = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, email } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ success: false, message: "Phone number is required" });
+    if (!phone && !email) {
+      return res.status(400).json({ success: false, message: "Phone or Email is required" });
     }
 
     // Generate 6 digit OTP
@@ -149,30 +150,65 @@ export const sendOTP = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Find or create user
-    let user = await User.findOne({ phone });
+    let user;
+    if (phone) {
+      user = await User.findOne({ phone });
+    } else {
+      user = await User.findOne({ email });
+    }
 
     if (!user) {
-      // Create a temporary name/email if they don't exist yet
-      // In a real app, you might want a separate registration step
-      const tempEmail = `user_${phone}@samvaad.app`;
-      user = await User.create({
-        phone,
-        name: phone, // Default name is phone number
-        email: tempEmail,
-        status: "offline"
-      });
+      if (phone) {
+        const tempEmail = `user_${phone}@samvaad.app`;
+        user = await User.create({
+          phone,
+          name: phone,
+          email: tempEmail,
+          status: "offline"
+        });
+      } else {
+        const tempName = email.split('@')[0];
+        user = await User.create({
+          email,
+          name: tempName,
+          status: "offline"
+        });
+      }
     }
 
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
 
-    // Send OTP via SMS mock
-    await sendSMS(phone, `Your Samvaad verification code is: ${otp}. Valid for 10 minutes.`);
+    let sentVia = "";
+    // Send OTP via Email if user has email
+    if (user.email && user.email.includes('@') && !user.email.endsWith('.app')) {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #008080; text-align: center;">Samvaad Verification</h2>
+          <p>Hello,</p>
+          <p>Your verification code for Samvaad is:</p>
+          <div style="background: #f4f4f4; padding: 20px; font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #333; margin: 20px 0;">
+            ${otp}
+          </div>
+          <p>This code is valid for 10 minutes. Please do not share this code with anyone.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #888; text-align: center;">Sent by Samvaad App</p>
+        </div>
+      `;
+      await sendEmail(user.email, "Your Samvaad Verification Code", `Your code is ${otp}`, emailHtml);
+      sentVia = "email";
+    }
+
+    // Also send via SMS mock if phone exists
+    if (user.phone) {
+      await sendSMS(user.phone, `Your Samvaad verification code is: ${otp}. Valid for 10 minutes.`);
+      if (!sentVia) sentVia = "sms";
+    }
 
     res.json({
       success: true,
-      message: "OTP sent successfully",
+      message: `OTP sent successfully via ${sentVia}`,
     });
   } catch (error) {
     console.error(error);
@@ -185,13 +221,17 @@ export const sendOTP = async (req, res) => {
 // @access  Public
 export const verifyOTP = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const { phone, email, otp } = req.body;
 
-    if (!phone || !otp) {
-      return res.status(400).json({ success: false, message: "Phone and OTP are required" });
+    if ((!phone && !email) || !otp) {
+      return res.status(400).json({ success: false, message: "Identifier and OTP are required" });
     }
 
-    const user = await User.findOne({ phone }).select("+otp +otpExpires");
+    let query = {};
+    if (phone) query = { phone };
+    else query = { email };
+
+    const user = await User.findOne(query).select("+otp +otpExpires");
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
