@@ -143,8 +143,24 @@ const frontendBuildPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(frontendBuildPath));
 
 // SPA routing: Serve index.html for all non-API routes
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendBuildPath, "index.html"));
+// SPA routing: Serve index.html for all non-API routes
+// Use a middleware that ignores API and socket routes to avoid path-to-regexp
+// parsing issues on some platforms (e.g. Render) where '*' can cause errors.
+app.use((req, res, next) => {
+  // Allow API and socket endpoints to continue to their handlers
+  if (
+    req.path.startsWith("/api") ||
+    req.path.startsWith("/socket.io") ||
+    req.path.startsWith("/socket")
+  ) {
+    return next();
+  }
+
+  // If the request matches a static file that exists, let express.static handle it
+  // Otherwise, serve SPA index for client-side routing
+  res.sendFile(path.join(frontendBuildPath, "index.html"), (err) => {
+    if (err) next(err);
+  });
 });
 
 // Error handling middleware
