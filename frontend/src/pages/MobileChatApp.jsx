@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import EmojiPicker from "../components/Chat/EmojiPicker";
 import SettingsScreen from "./SamvaadSettings";
-import { getContacts } from "../services/chatAPI";
+import { getContacts, getUsers } from "../services/chatAPI";
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
 const T = {
@@ -2204,126 +2204,176 @@ const CallsPage = ({ onBack, conversations }) => (
 // ══════════════════════════════════════════════════════════════════════════════
 // NEW CHAT MODAL (bottom sheet)
 // ══════════════════════════════════════════════════════════════════════════════
-const NewChatModal = ({ onClose, conversations, onSelectConv }) => (
-  <AnimatePresence>
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "flex-end",
-      }}
-      onClick={onClose}
-    >
+const NewChatModal = ({
+  onClose,
+  conversations,
+  allUsers = [],
+  onSelectConv,
+  userId,
+}) => {
+  // Combine conversations and all users, removing duplicates and current user
+  const existingUserIds = new Set(
+    conversations.map((c) => c.userId || c.participantId),
+  );
+  const uniqueUsers = allUsers.filter((u) => !existingUserIds.has(u._id));
+
+  const displayList = [
+    ...conversations,
+    ...uniqueUsers.map((u) => ({
+      id: u._id,
+      userId: u._id,
+      name: u.username || u.name,
+      avatar: u.avatar,
+      online: u.isOnline,
+      original: u,
+    })),
+  ];
+
+  return (
+    <AnimatePresence>
       <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 340, damping: 34 }}
-        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         style={{
-          background: "white",
-          borderRadius: "24px 24px 0 0",
-          width: "100%",
-          maxHeight: "70%",
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          zIndex: 1000,
           display: "flex",
-          flexDirection: "column",
+          alignItems: "flex-end",
         }}
+        onClick={onClose}
       >
-        <div
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", stiffness: 340, damping: 34 }}
+          onClick={(e) => e.stopPropagation()}
           style={{
-            padding: "20px 20px 14px",
+            background: "white",
+            borderRadius: "24px 24px 0 0",
+            width: "100%",
+            maxHeight: "70%",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-            borderBottom: "1px solid #f5f5fc",
+            flexDirection: "column",
           }}
         >
-          <h3
-            style={{ margin: 0, fontSize: 18, fontWeight: 800, color: T.text }}
-          >
-            New Chat
-          </h3>
-          <button
-            onClick={onClose}
+          <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: "#f5f5fa",
-              border: "none",
+              padding: "20px 20px 14px",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#666",
-              fontSize: 20,
-              lineHeight: 1,
+              justifyContent: "space-between",
+              flexShrink: 0,
+              borderBottom: "1px solid #f5f5fc",
             }}
           >
-            ×
-          </button>
-        </div>
-        <div style={{ overflowY: "auto", flex: 1, padding: "8px 0" }}>
-          {conversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => {
-                onSelectConv(conv.original || conv);
-                onClose();
-              }}
+            <h3
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "12px 20px",
-                width: "100%",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 800,
+                color: T.text,
               }}
             >
-              <Avatar
-                name={conv.name}
-                src={conv.avatar}
-                size={46}
-                online={conv.online}
-              />
-              <div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontWeight: 600,
-                    fontSize: 15,
-                    color: T.text,
-                  }}
-                >
-                  {conv.name}
-                </p>
-                <p
-                  style={{
-                    margin: "2px 0 0",
-                    fontSize: 12,
-                    color: conv.online ? T.green : T.textMuted,
-                  }}
-                >
-                  {conv.online ? "Online" : "Offline"}
-                </p>
-              </div>
+              New Chat
+            </h3>
+            <button
+              onClick={onClose}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "#f5f5fa",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "#666",
+                fontSize: 20,
+                lineHeight: 1,
+              }}
+            >
+              ×
             </button>
-          ))}
-        </div>
+          </div>
+          <div style={{ overflowY: "auto", flex: 1, padding: "8px 0" }}>
+            {displayList.length === 0 ? (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: T.textMuted,
+                  padding: "20px",
+                }}
+              >
+                No users available
+              </p>
+            ) : (
+              displayList.map((item) => (
+                <button
+                  key={item.id || item.userId}
+                  onClick={() => {
+                    onSelectConv(item.original || item);
+                    onClose();
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "12px 20px",
+                    width: "100%",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "#f5f5fa")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "none")
+                  }
+                >
+                  <Avatar
+                    name={item.name}
+                    src={item.avatar}
+                    size={46}
+                    online={item.online}
+                  />
+                  <div>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 600,
+                        fontSize: 15,
+                        color: T.text,
+                      }}
+                    >
+                      {item.name}
+                    </p>
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: 12,
+                        color: item.online ? T.green : T.textMuted,
+                      }}
+                    >
+                      {item.online ? "Online" : "Offline"}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
-  </AnimatePresence>
-);
+    </AnimatePresence>
+  );
+};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
@@ -2392,6 +2442,7 @@ export default function MobileChatApp(props) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showContactAuth, setShowContactAuth] = useState(false);
   const [dbContacts, setDbContacts] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
 
   const [editingMessage, setEditingMessage] = useState(null);
 
@@ -2408,6 +2459,21 @@ export default function MobileChatApp(props) {
         .catch((err) => console.error("❌ Failed to fetch contacts:", err));
     }
   }, [token]);
+
+  // Fetch all users from database for new chat
+  useEffect(() => {
+    if (token) {
+      getUsers(token)
+        .then((res) => {
+          if (res.users) {
+            const filteredUsers = res.users.filter((u) => u._id !== userId); // Exclude current user
+            setAllUsers(filteredUsers);
+            console.log("✅ Loaded all users from database:", filteredUsers);
+          }
+        })
+        .catch((err) => console.error("❌ Failed to fetch users:", err));
+    }
+  }, [token, userId]);
 
   // Initial contact check
   useEffect(() => {
@@ -2985,6 +3051,8 @@ export default function MobileChatApp(props) {
       {showNewChatModal && (
         <NewChatModal
           conversations={mappedConvs}
+          allUsers={allUsers}
+          userId={userId}
           onClose={() => setShowNewChatModal?.(false)}
           onSelectConv={(conv) => {
             openConversation(conv.original || conv);
