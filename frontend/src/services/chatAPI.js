@@ -104,271 +104,318 @@
 // };
 
 // API Service
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const api = {
   async getConversations(token) {
     const response = await fetch(`${API_URL}/conversations`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return response.json();
+  },
+
+  async getContacts(token) {
+    const response = await fetch(`${API_URL}/contacts`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async getMessages(conversationId, token, page = 1) {
-    const response = await fetch(`${API_URL}/messages/${conversationId}?page=${page}&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/messages/${conversationId}?page=${page}&limit=50`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async sendMessage(data, token) {
     const response = await fetch(`${API_URL}/messages/send`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     return response.json();
   },
 
   async uploadMedia(formData, token) {
     const response = await fetch(`${API_URL}/messages/upload-media`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
-      body: formData
+      body: formData,
     });
     return response.json();
   },
 
   async markAsRead(messageId, token) {
     const response = await fetch(`${API_URL}/messages/${messageId}/read`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async deleteMessage(messageId, deleteFor, token) {
     const response = await fetch(`${API_URL}/messages/${messageId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ deleteFor })
+      body: JSON.stringify({ deleteFor }),
     });
     return response.json();
   },
 
   async searchUsers(query, token) {
-    const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(query)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/users/search?q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async createConversation(participantId, token) {
     const response = await fetch(`${API_URL}/conversations/create`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ participantId, type: 'one-on-one' })
+      body: JSON.stringify({ participantId, type: "one-on-one" }),
     });
     return response.json();
   },
 
   async createGroupConversation(participantIds, name, token) {
     const response = await fetch(`${API_URL}/conversations/create`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ participants: participantIds, groupName: name, type: 'group' })
+      body: JSON.stringify({
+        participants: participantIds,
+        groupName: name,
+        type: "group",
+      }),
     });
     return response.json();
   },
 
   async updateGroupInfo(conversationId, data, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/group`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/group`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data)
-    });
+    );
     return response.json();
   },
 
   async sendGroupInvite(conversationId, userId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/invite`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/invite`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
       },
-      body: JSON.stringify({ userId })
-    });
+    );
     return response.json();
   },
 
   async respondGroupInvite(conversationId, accept, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/invite/respond`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/invite/respond`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ accept }),
       },
-      body: JSON.stringify({ accept })
-    });
+    );
     return response.json();
   },
 
   async addParticipant(conversationId, userId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/participants`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/participants`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
       },
-      body: JSON.stringify({ userId })
-    });
+    );
     return response.json();
   },
 
   async removeParticipant(conversationId, userId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/participants`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/participants`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
       },
-      body: JSON.stringify({ userId })
-    });
+    );
     return response.json();
   },
 
   async leaveGroup(conversationId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/leave`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/leave`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async makeAdmin(conversationId, userId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/admins`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/admins`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
       },
-      body: JSON.stringify({ userId })
-    });
+    );
     return response.json();
   },
 
   async removeAdmin(conversationId, userId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/admins`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/admins`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
       },
-      body: JSON.stringify({ userId })
-    });
+    );
     return response.json();
   },
 
   async votePoll(messageId, optionIndex, token) {
     const response = await fetch(`${API_URL}/messages/${messageId}/vote`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ optionIndex })
+      body: JSON.stringify({ optionIndex }),
     });
     return response.json();
   },
 
   async subscribePush(subscription, token) {
     const response = await fetch(`${API_URL}/users/subscribe-push`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(subscription)
+      body: JSON.stringify(subscription),
     });
     return response.json();
   },
 
   async unsubscribePush(endpoint, token) {
     const response = await fetch(`${API_URL}/users/unsubscribe-push`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ endpoint })
+      body: JSON.stringify({ endpoint }),
     });
     return response.json();
   },
 
   async clearChat(conversationId, token) {
-    const response = await fetch(`${API_URL}/messages/conversation/${conversationId}/clear`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/messages/conversation/${conversationId}/clear`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async editMessage(messageId, content, token) {
     const response = await fetch(`${API_URL}/messages/${messageId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ content }),
     });
     return response.json();
   },
 
   async forwardMessage(messageId, conversationIds, token) {
     const response = await fetch(`${API_URL}/messages/${messageId}/forward`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ conversationIds })
+      body: JSON.stringify({ conversationIds }),
     });
     return response.json();
   },
@@ -376,67 +423,73 @@ const api = {
   async getTasks(token) {
     const response = await fetch(`${API_URL}/tasks`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async createTask(data, token) {
     const response = await fetch(`${API_URL}/tasks`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     return response.json();
   },
 
   async updateTask(id, data, token) {
     const response = await fetch(`${API_URL}/tasks/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     return response.json();
   },
 
   async deleteTask(id, token) {
     const response = await fetch(`${API_URL}/tasks/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async togglePin(conversationId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/pin`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/pin`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async toggleArchive(conversationId, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/archive`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/archive`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
@@ -445,98 +498,104 @@ const api = {
     if (conversationId) url += `&conversationId=${conversationId}`;
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async getConversationMedia(conversationId, type, token) {
-    const response = await fetch(`${API_URL}/messages/${conversationId}/media?type=${type}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${API_URL}/messages/${conversationId}/media?type=${type}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
     return response.json();
   },
 
   async getStatuses(token) {
     const response = await fetch(`${API_URL}/status`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async createStatus(data, token) {
     const response = await fetch(`${API_URL}/status`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     return response.json();
   },
 
   async markStatusSeen(id, token) {
     const response = await fetch(`${API_URL}/status/${id}/seen`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
 
   async deleteStatus(id, token) {
     const response = await fetch(`${API_URL}/status/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
     return response.json();
   },
   async updateEphemeralSettings(conversationId, data, token) {
-    const response = await fetch(`${API_URL}/conversations/${conversationId}/ephemeral`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${API_URL}/conversations/${conversationId}/ephemeral`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data)
-    });
+    );
     return response.json();
   },
 
   async syncContacts(contacts, token) {
     const response = await fetch(`${API_URL}/users/sync-contacts`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ contacts })
+      body: JSON.stringify({ contacts }),
     });
     return response.json();
-  }
+  },
 };
 
 // ✅ FIX: Export getUsers function properly
 export const getUsers = async (token) => {
   const response = await fetch(`${API_URL}/users`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
   return response.json();
 };
@@ -545,7 +604,10 @@ export const apiUpdateProfile = async (data) => {
   const token = localStorage.getItem("token");
   const res = await fetch("/api/users/profile", {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(data),
   });
   return res.json();
@@ -555,7 +617,10 @@ export const apiUpdateSettings = async (settings) => {
   const token = localStorage.getItem("token");
   const res = await fetch("/api/users/settings", {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ settings }),
   });
   return res.json();
@@ -564,6 +629,7 @@ export const apiUpdateSettings = async (settings) => {
 // ✅ Export all other methods
 
 export const getConversations = api.getConversations;
+export const getContacts = api.getContacts;
 export const getMessages = api.getMessages;
 export const sendMessage = api.sendMessage;
 export const uploadMedia = api.uploadMedia;
