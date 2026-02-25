@@ -2207,7 +2207,7 @@ const CallsPage = ({ onBack, conversations }) => (
 const NewChatModal = ({
   onClose,
   conversations,
-  allUsers = [],
+  allUsers,
   onSelectConv,
   userId,
 }) => {
