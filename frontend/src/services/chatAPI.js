@@ -124,7 +124,9 @@ const api = {
         "Content-Type": "application/json",
       },
     });
-    return response.json();
+    const json = await response.json();
+    // Normalize: return array of contacts when possible
+    return json.data || json.contacts || json;
   },
 
   async getMessages(conversationId, token, page = 1) {
@@ -597,7 +599,9 @@ export const getUsers = async (token) => {
       "Content-Type": "application/json",
     },
   });
-  return response.json();
+  const json = await response.json();
+  // Normalize: return array of users when possible
+  return json.data || json.users || json;
 };
 
 export const apiUpdateProfile = async (data) => {

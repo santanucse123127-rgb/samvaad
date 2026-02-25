@@ -2451,9 +2451,12 @@ export default function MobileChatApp(props) {
     if (token) {
       getContacts(token)
         .then((res) => {
-          if (res.contacts) {
-            setDbContacts(res.contacts);
-            console.log("✅ Loaded contacts from database:", res.contacts);
+          const list = Array.isArray(res)
+            ? res
+            : res?.data || res?.contacts || [];
+          if (Array.isArray(list)) {
+            setDbContacts(list);
+            console.log("✅ Loaded contacts from database:", list);
           }
         })
         .catch((err) => console.error("❌ Failed to fetch contacts:", err));
@@ -2465,8 +2468,9 @@ export default function MobileChatApp(props) {
     if (token) {
       getUsers(token)
         .then((res) => {
-          if (res.users) {
-            const filteredUsers = res.users.filter((u) => u._id !== userId); // Exclude current user
+          const list = Array.isArray(res) ? res : res?.data || res?.users || [];
+          if (Array.isArray(list)) {
+            const filteredUsers = list.filter((u) => u._id !== userId); // Exclude current user
             setAllUsers(filteredUsers);
             console.log("✅ Loaded all users from database:", filteredUsers);
           }
@@ -2491,9 +2495,10 @@ export default function MobileChatApp(props) {
     try {
       // Fetch contacts from database instead of device
       const res = await getContacts(token);
-      if (res.contacts) {
-        setDbContacts(res.contacts);
-        console.log("✅ Synced contacts from database:", res.contacts);
+      const list = Array.isArray(res) ? res : res?.data || res?.contacts || [];
+      if (Array.isArray(list)) {
+        setDbContacts(list);
+        console.log("✅ Synced contacts from database:", list);
         await updateSettings?.({ settings: { syncContactsEnabled: true } });
       }
     } catch (err) {
