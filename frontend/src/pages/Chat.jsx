@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Smile, Phone, Video, MoreVertical, Search, X, Plus,
   Trash2, LogOut, Settings, Image as ImageIcon, Users,
-  ChevronDown, File, MessageSquare, Check, Clipboard, Lock,
+  ChevronDown, ChevronLeft, File, MessageSquare, Check, Clipboard, Lock,
   Mic, StopCircle, Play, Pause, Reply, PhoneCall, Archive, CircleDot, Megaphone, Rss, Clock, Eye, EyeOff
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
@@ -36,6 +36,7 @@ import MagicEffectManager from "../components/Magic/MagicEffectManager";
 import { useVibe } from "../context/VibeContext";
 import { getUsers } from "../services/chatAPI";
 import { ListTodo, Sparkles, Wind } from "lucide-react";
+import MobileChatApp from "./MobileChatApp";
 
 /* ───────────────────────── helpers ───────────────────────── */
 const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
@@ -91,7 +92,7 @@ const Chat = ({ token }) => {
     statuses
   } = useChat();
 
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile, updateSettings, uploadAvatar, updateAppLock } = useAuth();
   const { activeVibe, setActiveVibe, vibes } = useVibe();
 
   /* ─── Local state ─── */
@@ -136,6 +137,10 @@ const Chat = ({ token }) => {
   const [globalSearchMessages, setGlobalSearchMessages] = useState([]);
   const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
   const [activeRailTab, setActiveRailTab] = useState("chats"); // chats, calls, status, channels, groups, gallery
+  const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("All");
+
+  const categories = ["All Chats", "Groups", "Contacts"];
 
   // Compute stats
   const unreadChatsCount = useMemo(() =>
@@ -194,10 +199,14 @@ const Chat = ({ token }) => {
     const handler = (e) => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
       if (sidebarMenuRef.current && !sidebarMenuRef.current.contains(e.target)) setShowSidebarMenu(false);
+      // Close mobile more menu on outside click
+      if (showMobileMoreMenu && !e.target.closest('.sv-mobile-more-menu') && !e.target.closest('.sv-bottom-nav-item-more')) {
+        setShowMobileMoreMenu(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [showMobileMoreMenu]);
 
   // Task conversion listener
   useEffect(() => {
@@ -468,7 +477,60 @@ const Chat = ({ token }) => {
   /* ══════════════════════════ RENDER ══════════════════════════ */
   return (
     <ContactSyncGateway>
-      <div className={`flex h-screen overflow-hidden ${isFocusMode ? 'focus-mode' : ''}`} style={{ background: 'hsl(var(--sv-bg))' }}>
+
+      <div className="md:hidden h-full">
+        <MobileChatApp
+          conversations={filteredConversations}
+          selectedConversation={selectedConversation}
+          setSelectedConversation={setSelectedConversation}
+          messages={messagesWithDates}
+          loading={loading}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          handleSend={handleSend}
+          handleInputChange={handleInputChange}
+          handleFileSelect={handleFileSelect}
+          fileInputRef={fileInputRef}
+          isRecording={isRecording}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          recordingDuration={recordingDuration}
+          fmtDuration={fmtDuration}
+          replyToMessage={replyToMessage}
+          setReplyToMessage={setReplyToMessage}
+          uploadPreview={uploadPreview}
+          setUploadPreview={setUploadPreview}
+          showEmojiPicker={showEmojiPicker}
+          setShowEmojiPicker={setShowEmojiPicker}
+          handleEmojiSelect={handleEmojiSelect}
+          getConversationName={getConversationName}
+          getConversationAvatar={getConversationAvatar}
+          isUserOnline={isUserOnline}
+          getLastSeen={getLastSeen}
+          typingUsers={typingUsers}
+          userId={userId}
+          user={user}
+          setActiveCall={setActiveCall}
+          addReaction={addReaction}
+          setForwardMessageData={setForwardMessageData}
+          setShowForwardModal={setShowForwardModal}
+          showNewChatModal={showNewChatModal}
+          setShowNewChatModal={setShowNewChatModal}
+          handleNewChat={handleNewChat}
+          token={token}
+          logout={logout}
+          clearChat={clearChat}
+          statuses={statuses}
+          incomingCall={incomingCall}
+          activeCall={activeCall}
+          fmtLastSeen={fmtLastSeen}
+          updateProfile={updateProfile}
+          updateSettings={updateSettings}
+          uploadAvatar={uploadAvatar}
+          updateAppLock={updateAppLock}
+        />
+      </div>
+      <div className={`hidden md:flex h-screen overflow-hidden ${isFocusMode ? 'focus-mode' : ''}`} style={{ background: 'hsl(var(--sv-bg))' }}>
         <VibeBackgrounds />
         <MagicEffectManager />
 
@@ -548,7 +610,7 @@ const Chat = ({ token }) => {
         </AnimatePresence>
 
         {/* Mobile backdrop */}
-        <AnimatePresence>
+        {/* <AnimatePresence>
           {mobileShowSidebar && (
             <motion.div
               className="fixed inset-0 bg-black/60 z-[19] md:hidden"
@@ -556,10 +618,10 @@ const Chat = ({ token }) => {
               onClick={() => setMobileShowSidebar(false)}
             />
           )}
-        </AnimatePresence>
+        </AnimatePresence> */}
 
-        {/* ── Nav Rail (Slim Sidebar) ── */}
-        <aside className={`sv-nav-rail fixed md:relative z-40 transition-transform duration-300 ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        {/* ── Nav Rail (Slim Sidebar - Desktop Only) ── */}
+        <aside className="sv-nav-rail hidden md:flex">
           <div className="flex flex-col items-center gap-4 w-full pt-4">
             {/* Chats */}
             <div className="relative group">
@@ -695,38 +757,64 @@ const Chat = ({ token }) => {
         {/* ── SidebarPanel (Conversations) ── */}
         <aside
           className={`sv-sidebar-v2 z-30 transition-all duration-300 ease-in-out
-          fixed md:relative inset-y-0 left-[60px] md:left-0 h-full md:h-auto
-          w-[calc(100vw-60px)] md:w-[320px]
+          fixed md:relative inset-y-0 left-0 md:left-0 h-full md:h-auto
+          w-full md:w-[320px] pb-[72px] md:pb-0
           ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         >
           {/* Sidebar Header */}
-          <div className="flex items-center justify-between px-6 py-5 flex-shrink-0">
-            <h2 className="text-xl font-black italic tracking-tighter" style={{ color: 'hsl(var(--sv-text))' }}>
-              {activeRailTab === 'chats' && showArchivedOnly ? "Archived" :
-                activeRailTab === 'chats' ? "Messages" :
-                  activeRailTab.charAt(0).toUpperCase() + activeRailTab.slice(1)}
+          <div className="flex items-center justify-between px-6 py-6 flex-shrink-0 md:bg-transparent bg-white">
+            <div className="md:hidden">
+              <p className="text-sm text-gray-400 font-medium">Hello,</p>
+              <h2 className="text-2xl font-black text-gray-900 leading-tight">
+                {user?.name?.split(' ')[0] || "Johan"}
+              </h2>
+            </div>
+            <h2 className="hidden md:block text-xl font-black italic tracking-tighter" style={{ color: 'hsl(var(--sv-text))' }}>
+              {activeRailTab === 'chats' && showArchivedOnly ? "Archived" : activeRailTab === 'chats' ? "Messages" : activeRailTab.charAt(0).toUpperCase() + activeRailTab.slice(1)}
             </h2>
-            <div className="flex items-center gap-1">
-              {activeRailTab === 'chats' && (
-                <button
-                  onClick={() => setShowArchivedOnly(p => !p)}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showArchivedOnly ? 'bg-sv-accent text-white' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}
-                  title={showArchivedOnly ? "Show All" : "Show Archived"}
-                >
-                  <Archive size={16} />
-                </button>
-              )}
-              {!['profile', 'settings'].includes(activeRailTab) && (
-                <button
-                  id="new-chat-btn-v2"
-                  onClick={() => setShowNewChatModal(true)}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 hover:bg-white/10 text-white"
-                >
-                  <Plus size={18} />
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:text-black transition-colors">
+                <Search size={20} />
+              </button>
+              <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:text-black transition-colors">
+                <MoreVertical size={20} />
+              </button>
+              <div className="hidden md:flex items-center gap-1">
+                {activeRailTab === 'chats' && (
+                  <button
+                    onClick={() => setShowArchivedOnly(p => !p)}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showArchivedOnly ? 'bg-sv-accent text-white' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}
+                    title={showArchivedOnly ? "Show All" : "Show Archived"}
+                  >
+                    <Archive size={16} />
+                  </button>
+                )}
+                {!['profile', 'settings'].includes(activeRailTab) && (
+                  <button
+                    id="new-chat-btn-v2"
+                    onClick={() => setShowNewChatModal(true)}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 hover:bg-white/10 text-white"
+                  >
+                    <Plus size={18} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Mobile Category Filters */}
+          {/* <div className="md:hidden sv-chat-list-filter bg-white">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`sv-filter-pill ${activeCategory === cat ? 'active' : ''}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div> */}
+
 
           {/* Search */}
           {!['profile', 'settings'].includes(activeRailTab) && (
@@ -867,50 +955,47 @@ const Chat = ({ token }) => {
                         key={conv._id}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => { setSelectedConversation(conv); setMobileShowSidebar(false); }}
-                        className={`sv-conv-item mb-0.5 relative group ${isActive ? "active" : ""}`}
+                        className={`sv-conv-item relative group ${isActive ? "active" : ""}`}
                       >
-                        <Avatar src={convAvatar} name={convName} size={12} online={online} />
+                        <div className="relative flex-shrink-0">
+                          <Avatar src={convAvatar} name={convName} size={14} />
+                          {online && (
+                            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full" />
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {conv.pinnedBy?.some(id => id === userId || id._id === userId) && (
-                                <Sparkles size={10} className="text-sv-accent flex-shrink-0" />
-                              )}
-                              <span className="font-bold text-[13px] truncate" style={{ color: 'hsl(var(--sv-text))' }}>{convName}</span>
-                            </div>
-                            <span className="text-[10px] font-medium flex-shrink-0 ml-2" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="font-bold text-[15px] truncate text-[#333] md:text-white" style={{ color: window.innerWidth <= 768 ? '#333' : 'hsl(var(--sv-text))' }}>{convName}</span>
+                            <span className="sv-conv-time md:text-[10px] md:font-medium">
                               {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <p className="text-[12px] truncate pr-3" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                            <p className="text-[13px] text-[#888] truncate pr-3 md:text-[12px] md:text-white/40">
                               {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
                             </p>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {unread > 0 && !isActive && (
-                                <span className="text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center"
-                                  style={{ background: 'hsl(var(--sv-accent))', color: 'white' }}>
-                                  {unread > 99 ? "99+" : unread}
-                                </span>
-                              )}
-                              <div className="hidden group-hover:flex items-center gap-1">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); togglePin(conv._id); }}
-                                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white"
-                                  title="Pin"
-                                >
-                                  <Check size={12} />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); toggleArchive(conv._id); }}
-                                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white"
-                                  title="Archive"
-                                >
-                                  <Archive size={12} />
-                                </button>
+                            {unread > 0 && (
+                              <div className="sv-unread-badge ml-2 shrink-0">
+                                {unread > 99 ? "99+" : unread}
                               </div>
-                            </div>
+                            )}
                           </div>
+                        </div>
+                        <div className="hidden group-hover:flex items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); togglePin(conv._id); }}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white"
+                            title="Pin"
+                          >
+                            <Check size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleArchive(conv._id); }}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white"
+                            title="Archive"
+                          >
+                            <Archive size={12} />
+                          </button>
                         </div>
                       </motion.div>
                     );
@@ -918,109 +1003,141 @@ const Chat = ({ token }) => {
                 )}
               </div>
             )}
+
+            {/* Mobile Fixed FAB as in purple image */}
+            <button
+              onClick={() => setShowNewChatModal(true)}
+              className="md:hidden fixed bottom-8 right-8 w-14 h-14 rounded-full flex items-center justify-center bg-[#5a5a9f] text-white shadow-2xl z-40 transition-transform active:scale-95"
+            >
+              <MessageSquare size={24} />
+            </button>
           </div>
         </aside>
 
         {/* ═══════ MAIN CHAT AREA ═══════ */}
-        <main className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300
-          ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 bg-[hsl(var(--sv-bg))] flex'}`}
+        < main className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300
+          ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 bg-[hsl(var(--sv-bg))] flex pb-[env(safe-area-inset-bottom,0px)]'}`}
         >
           <CallInterface />
 
-          {selectedConversation ? (
-            /* Chat column + profile/clipboard panels sit side by side */
-            <div className="flex flex-1 min-h-0 overflow-hidden">
+          {
+            selectedConversation ? (
+              /* Chat column + profile/clipboard panels sit side by side */
+              <div className="flex flex-1 min-h-0 overflow-hidden">
 
-              {/* ── Chat column ── */}
-              <div className="flex flex-col flex-1 min-w-0 min-h-0 relative">
+                {/* ── Chat column ── */}
+                <div className="flex flex-col flex-1 min-w-0 min-h-0 relative">
 
-                {/* Chat Header (V2 Premium) */}
-                <header className="sv-chat-header-v2">
-                  <div className="flex items-center gap-4 w-full">
-                    <button className="md:hidden sv-icon-btn w-10 h-10 rounded-xl mr-1" onClick={() => setMobileShowSidebar(true)}>
-                      <ChevronLeft size={20} />
-                    </button>
+                  {/* Chat Header (V2 Premium) */}
+                  <header className="sv-chat-header-v2 md:flex hidden">
+                    <div className="flex items-center gap-4 w-full">
+                      <button className="md:hidden sv-icon-btn w-10 h-10 rounded-xl mr-1" onClick={() => setMobileShowSidebar(true)}>
+                        <ChevronLeft size={20} />
+                      </button>
 
-                    <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
-                      <div className="relative flex-shrink-0">
-                        <Avatar
-                          src={getConversationAvatar(selectedConversation)}
-                          name={getConversationName(selectedConversation)}
-                          size={11}
-                          online={isUserOnline(selectedConversation)}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-base md:text-lg truncate tracking-tight" style={{ color: 'hsl(var(--sv-text))' }}>
+                      <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
+                        <div className="relative flex-shrink-0">
+                          <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={12} online={isUserOnline(selectedConversation)} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm tracking-tight truncate group-hover:text-sv-accent transition-colors" style={{ color: 'hsl(var(--sv-text))' }}>
                             {getConversationName(selectedConversation)}
-                          </h3>
-                          {selectedConversation.type === 'one-on-one' && (
-                            <Lock size={12} className="text-sv-online/70" />
+                          </p>
+                          {isTyping ? (
+                            <div className="sv-header-typing-dots">
+                              <span className="text-[10px] text-sv-accent font-medium">typing</span>
+                              <div className="flex gap-0.5">
+                                <span className="sv-typing-dot" style={{ width: 3, height: 3 }} />
+                                <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.2s' }} />
+                                <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.4s' }} />
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] truncate" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                              {isUserOnline(selectedConversation) ? "Online now" : "Last seen recently"}
+                            </p>
                           )}
                         </div>
-                        <p className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
-                          {isTyping ? (
-                            <span className="text-sv-accent flex items-center gap-1">
-                              Typing
-                              <span className="sv-header-typing-dots">
-                                {[0, 1, 2].map(i => <span key={i} className="sv-typing-dot" style={{ background: 'currentColor', animationDelay: `${i * 0.16}s` }} />)}
-                              </span>
-                            </span>
-                          ) : selectedConversation.type === "group"
-                            ? `${selectedConversation.participants?.length || 0} members`
-                            : isUserOnline(selectedConversation) ? <span className="text-sv-online">Online</span> : fmtLastSeen(getLastSeen(selectedConversation))
-                          }
-                        </p>
-                      </div>
-                    </button>
+                      </button>
 
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setActiveCall({ type: "voice", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
-                        className="sv-icon-btn w-10 h-10 rounded-xl hover:bg-white/5">
-                        <Phone size={18} />
-                      </button>
-                      <button onClick={() => setActiveCall({ type: "video", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
-                        className="sv-icon-btn w-10 h-10 rounded-xl hover:bg-white/5">
-                        <Video size={18} />
-                      </button>
-                      <button onClick={() => setShowInChatSearch(p => !p)}
-                        className={`sv-icon-btn w-10 h-10 rounded-xl hover:bg-white/5 ${showInChatSearch ? 'text-sv-accent' : ''}`}>
-                        <Search size={18} />
-                      </button>
-                      <div className="relative" ref={moreMenuRef}>
-                        <button onClick={() => setShowMoreMenu(p => !p)} className="sv-icon-btn w-10 h-10 rounded-xl hover:bg-white/5">
-                          <MoreVertical size={18} />
-                        </button>
-                        <AnimatePresence>
-                          {showMoreMenu && (
-                            <motion.div
-                              className="sv-dropdown right-0 top-12"
-                              initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                              transition={{ duration: 0.15 }}>
-                              <button className="sv-dropdown-item" onClick={() => { setShowProfile(p => !p); setShowMoreMenu(false); }}>
-                                <Users size={15} /> {showProfile ? "Hide Info" : "View Info"}
-                              </button>
-                              <button className="sv-dropdown-item" onClick={() => { setShowBgPicker(true); setShowMoreMenu(false); }}>
-                                <ImageIcon size={15} /> Change Background
-                              </button>
-                              {selectedConversation.type === "group" && (
-                                <button className="sv-dropdown-item" onClick={() => { setShowGroupInfoModal(true); setShowMoreMenu(false); }}>
-                                  <Settings size={15} /> Group Settings
-                                </button>
-                              )}
-                              <div className="my-1 h-px" style={{ background: 'hsl(var(--sv-border))' }} />
-                              <button className="sv-dropdown-item danger" onClick={() => { setShowClearConfirm(true); setShowMoreMenu(false); }}>
-                                <Trash2 size={15} /> Clear Chat
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                      <div className="flex items-center gap-1">
+                        <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setActiveCall({ type: "voice", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}><Phone size={18} /></button>
+                        <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setActiveCall({ type: "video", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}><Video size={18} /></button>
+                        <div className="w-[1px] h-6 bg-white/5 mx-1" />
+                        <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowInChatSearch(p => !p)}><Search size={18} /></button>
+                        <div className="relative" ref={moreMenuRef}>
+                          <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowMoreMenu(p => !p)}><MoreVertical size={18} /></button>
+                          <AnimatePresence>
+                            {showMoreMenu && (
+                              <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="sv-dropdown right-0 mt-2">
+                                <button onClick={() => setShowProfile(true)} className="sv-dropdown-item"><Users size={16} /> View Profile</button>
+                                <button onClick={() => setShowBgPicker(true)} className="sv-dropdown-item"><ImageIcon size={16} /> Change Wallpaper</button>
+                                <div className="h-px bg-white/5 my-1" />
+                                <button onClick={() => setShowClearConfirm(true)} className="sv-dropdown-item danger"><Trash2 size={16} /> Clear Chat</button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </header>
+
+                  {/* Mobile Specific Header matching purple image */}
+                  <header className="md:hidden sv-chat-header-dark">
+                    <div className="flex items-center gap-4 w-full">
+                      <button className="text-white" onClick={() => setMobileShowSidebar(true)}>
+                        <ChevronLeft size={24} />
+                      </button>
+                      <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                        <div className="relative flex-shrink-0">
+                          <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={11} />
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-[#5a5a9f] rounded-full" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-base truncate">{getConversationName(selectedConversation)}</p>
+                          <p className="text-[11px] text-white/60">Online</p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setActiveCall({ type: "voice", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
+                          className="w-10 h-10 border border-white/20 rounded-full flex items-center justify-center text-white"
+                        >
+                          <Phone size={18} />
+                        </button>
+                        <button
+                          onClick={() => setActiveCall({ type: "video", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
+                          className="w-10 h-10 border border-white/20 rounded-full flex items-center justify-center text-white"
+                        >
+                          <Video size={18} />
+                        </button>
+                        <button
+                          onClick={() => setShowInChatSearch(true)}
+                          className="w-10 h-10 border border-white/20 rounded-full flex items-center justify-center text-white"
+                        >
+                          <Search size={18} />
+                        </button>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowMoreMenu(p => !p)}
+                            className="w-10 h-10 border border-white/20 rounded-full flex items-center justify-center text-white"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                          <AnimatePresence>
+                            {showMoreMenu && (
+                              <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="sv-dropdown right-0 mt-2">
+                                <button onClick={() => setShowProfile(true)} className="sv-dropdown-item"><Users size={16} /> View Profile</button>
+                                <button onClick={() => setShowBgPicker(true)} className="sv-dropdown-item"><ImageIcon size={16} /> Change Wallpaper</button>
+                                <div className="h-px bg-white/5 my-1" />
+                                <button onClick={() => setShowClearConfirm(true)} className="sv-dropdown-item danger"><Trash2 size={16} /> Clear Chat</button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </div>
+                  </header>
 
                   {/* Search Bar in Chat (Slide down) */}
                   <AnimatePresence>
@@ -1051,374 +1168,329 @@ const Chat = ({ token }) => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </header>
 
-                {/* Messages area (V2 Premium) */}
-                <div
-                  ref={messageContainerRef}
-                  onScroll={handleScroll}
-                  className={`flex-1 overflow-y-auto scrollbar-custom px-4 md:px-6 py-6 flex flex-col gap-2 ${currentBgCls}`}
-                >
-                  <div className="max-w-4xl w-full mx-auto flex flex-col gap-2">
-                    {loading ? (
-                      <div className="flex items-center justify-center py-20">
-                        <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'hsl(var(--sv-accent))' }} />
-                      </div>
-                    ) : (
-                      messagesWithDates.map((item) => {
-                        if (item.type === "date") return (
-                          <div key={item.id} className="flex items-center justify-center my-6">
-                            <span className="text-[10px] uppercase tracking-widest px-4 py-1 rounded-full font-bold bg-white/5 text-white/40 border border-white/5">
-                              {item.label}
-                            </span>
-                          </div>
-                        );
-                        return (
-                          <MessageItem
-                            key={item.id || item._id}
-                            message={item}
-                            isOwn={item.sender === "user"}
-                            onReply={setReplyToMessage}
-                            onReact={addReaction}
-                            onForward={(msg) => { setForwardMessageData(msg); setShowForwardModal(true); }}
-                            userId={userId}
+                  {/* Messages area (V2 Premium) */}
+                  <div
+                    ref={messageContainerRef}
+                    onScroll={handleScroll}
+                    className={`flex-1 overflow-y-auto scrollbar-custom px-4 md:px-6 py-4 flex flex-col gap-2 ${currentBgCls} md:bg-transparent sv-chat-body-light`}
+                  >
+                    <div className="max-w-4xl w-full mx-auto flex flex-col gap-2 pt-2">
+                      {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                          <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'hsl(var(--sv-accent))' }} />
+                        </div>
+                      ) : (
+                        messagesWithDates.map((item) => {
+                          if (item.type === "date") return (
+                            <div key={item.id} className="flex items-center justify-center my-4">
+                              <span className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full font-black bg-black/5 text-[#5a5a9f] border border-[#5a5a9f]/10">
+                                {item.label}
+                              </span>
+                            </div>
+                          );
+                          return (
+                            <MessageItem
+                              key={item.id || item._id}
+                              message={item}
+                              isOwn={item.sender === "user" || item.sender?._id === userId}
+                              onReply={setReplyToMessage}
+                              onReact={addReaction}
+                              onForward={(msg) => { setForwardMessageData(msg); setShowForwardModal(true); }}
+                              userId={userId}
+                            />
+                          );
+                        })
+                      )}
+                      <AnimatePresence>
+                        {isTyping && <TypingIndicator />}
+                      </AnimatePresence>
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </div>
+
+                  {/* Floating Input Area */}
+                  <div className="md:px-6 md:pb-6 md:pt-2 md:bg-gradient-to-t md:from-[hsl(var(--sv-bg))] md:via-[hsl(var(--sv-bg))/0.4] md:to-transparent sticky bottom-0 z-20 sv-input-bar-light">
+                    <div className="max-w-3xl mx-auto flex flex-col gap-2">
+
+                      {/* Previews (Reply/Upload) */}
+                      <AnimatePresence>
+                        {replyToMessage && (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                            className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                            <Reply size={14} className="text-sv-accent" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-sv-accent uppercase tracking-tighter">Replying to {replyToMessage.name || 'user'}</p>
+                              <p className="text-xs truncate opacity-60">{replyToMessage.content}</p>
+                            </div>
+                            <button onClick={() => setReplyToMessage(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                              <X size={14} />
+                            </button>
+                          </motion.div>
+                        )}
+                        {uploadPreview && (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                            className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10">
+                              {uploadPreview.type.startsWith("image/")
+                                ? <img src={uploadPreview.preview} className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center bg-white/5"><File size={16} /></div>
+                              }
+                            </div>
+                            <div className="flex-1 truncate">
+                              <p className="text-xs font-semibold truncate">{uploadPreview.name}</p>
+                              <p className="text-[10px] opacity-50 uppercase font-black">Ready to upload</p>
+                            </div>
+                            <button onClick={() => setUploadPreview(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                              <X size={14} />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      {/* Input Container (V2) */}
+                      <div className="sv-input-container-v2 md:shadow-2xl relative md:bg-[hsl(var(--sv-surface-2))] sv-input-inner-light">
+                        {/* Emoji Button + Picker */}
+                        <div className="relative flex-shrink-0">
+                          <button onClick={() => setShowEmojiPicker(p => !p)}
+                            className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/5 text-gray-400 md:text-white/50 hover:text-sv-accent"
+                            style={showEmojiPicker ? { color: 'hsl(var(--sv-accent))' } : {}}>
+                            <Smile size={22} />
+                          </button>
+                        </div>
+
+                        <form onSubmit={handleSend} className="flex-1 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newMessage}
+                            onChange={handleInputChange}
+                            placeholder="Type a message..."
+                            className="flex-1 bg-transparent border-none outline-none text-[15px] py-3 text-gray-800 md:text-white placeholder:text-gray-400 md:placeholder:text-white/20"
                           />
-                        );
-                      })
-                    )}
-                    <AnimatePresence>
-                      {isTyping && <TypingIndicator />}
-                    </AnimatePresence>
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
 
-                {/* Floating Input Area */}
-                <div className="px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-[hsl(var(--sv-bg))] via-[hsl(var(--sv-bg))/0.4] to-transparent sticky bottom-0">
-                  <div className="max-w-3xl mx-auto flex flex-col gap-2">
-
-                    {/* Previews (Reply/Upload) */}
-                    <AnimatePresence>
-                      {replyToMessage && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                          className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                          <Reply size={14} className="text-sv-accent" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-sv-accent uppercase tracking-tighter">Replying to {replyToMessage.name || 'user'}</p>
-                            <p className="text-xs truncate opacity-60">{replyToMessage.content}</p>
-                          </div>
-                          <button onClick={() => setReplyToMessage(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-                            <X size={14} />
-                          </button>
-                        </motion.div>
-                      )}
-                      {uploadPreview && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                          className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10">
-                            {uploadPreview.type.startsWith("image/")
-                              ? <img src={uploadPreview.preview} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full flex items-center justify-center bg-white/5"><File size={16} /></div>
-                            }
-                          </div>
-                          <div className="flex-1 truncate">
-                            <p className="text-xs font-semibold truncate">{uploadPreview.name}</p>
-                            <p className="text-[10px] opacity-50 uppercase font-black">Ready to upload</p>
-                          </div>
-                          <button onClick={() => setUploadPreview(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-                            <X size={14} />
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    {/* Input Container (V2) */}
-                    <div className="sv-input-container-v2 shadow-2xl relative">
-                      {/* Emoji Button + Picker */}
-                      <div className="relative flex-shrink-0">
-                        <button onClick={() => setShowEmojiPicker(p => !p)}
-                          className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/5 text-white/50 hover:text-white"
-                          style={showEmojiPicker ? { color: 'hsl(var(--sv-accent))' } : {}}>
-                          <Smile size={20} />
-                        </button>
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-full mb-2 left-0 z-50">
-                            <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-                            <div className="fixed inset-0 -z-10" onClick={() => setShowEmojiPicker(false)} />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Attach Button + Menu */}
-                      <div className="relative flex-shrink-0">
-                        <button onClick={() => setShowAttachMenu(p => !p)}
-                          className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/5 text-white/50 hover:text-white"
-                          style={showAttachMenu ? { color: 'hsl(var(--sv-accent))' } : {}}>
-                          <Plus size={20} />
-                        </button>
-                        <AnimatePresence>
-                          {showAttachMenu && (
-                            <motion.div
-                              className="sv-dropdown bottom-full mb-2 left-0"
-                              initial={{ opacity: 0, scale: 0.9, y: 8 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.9, y: 8 }}
-                              transition={{ duration: 0.15 }}>
-                              <button className="sv-dropdown-item" onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}>
-                                <ImageIcon size={15} style={{ color: '#3b82f6' }} /> Media &amp; Files
-                              </button>
-                              <button className="sv-dropdown-item" onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }}>
-                                <Users size={15} style={{ color: '#f59e0b' }} /> Create Poll
-                              </button>
-                              <button className="sv-dropdown-item" onClick={() => { setShowCodeModal(true); setShowAttachMenu(false); }}>
-                                <MessageSquare size={15} style={{ color: '#a78bfa' }} /> Code Block
-                              </button>
-                              <button className="sv-dropdown-item" onClick={() => { setShowScheduleModal(true); setShowAttachMenu(false); }}>
-                                <Settings size={15} style={{ color: '#6ee7b7' }} /> Schedule Message
-                              </button>
-                              <button className="sv-dropdown-item" onClick={() => { setShowTimeCapsuleModal(true); setShowAttachMenu(false); }}>
-                                <Lock size={15} style={{ color: '#f97316' }} /> Time Capsule
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      <form onSubmit={handleSend} className="flex-1 flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={newMessage}
-                          onChange={handleInputChange}
-                          placeholder="Type a message..."
-                          className="flex-1 bg-transparent border-none outline-none text-sm py-2 px-2 text-white placeholder:text-white/20"
-                        />
-                        {(newMessage.trim() || uploadPreview) && (
-                          <button
-                            type="button"
-                            onClick={() => setIsViewOnce(!isViewOnce)}
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isViewOnce ? 'bg-sv-accent/10 text-sv-accent ring-2 ring-sv-accent/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                            title="One-time view"
-                          >
-                            {isViewOnce ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        )}
-
-                        {isRecording ? (
-                          <div className="flex items-center gap-3 pr-2">
-                            <span className="text-xs font-bold tabular-nums text-red-500 animate-pulse">{fmtDuration(recordingDuration)}</span>
-                            <button type="button" onClick={() => stopRecording(true)} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30">
-                              <Send size={18} />
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-sv-accent">
+                              <Plus size={22} />
                             </button>
+
+                            {isRecording ? (
+                              <div className="flex items-center gap-3 pr-2">
+                                <span className="text-xs font-bold tabular-nums text-red-500 animate-pulse">{fmtDuration(recordingDuration)}</span>
+                                <button type="button" onClick={() => stopRecording(true)} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-500/30">
+                                  <Send size={18} />
+                                </button>
+                              </div>
+                            ) : (newMessage.trim() || uploadPreview) ? (
+                              <button
+                                type="submit"
+                                style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))' }}
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg shadow-sv-accent/40 transition-transform active:scale-95 flex-shrink-0"
+                              >
+                                <Send size={20} />
+                              </button>
+                            ) : (
+                              <button type="button" onClick={startRecording} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-sv-accent">
+                                <Mic size={22} />
+                              </button>
+                            )}
                           </div>
-                        ) : (newMessage.trim() || uploadPreview) ? (
-                          <button
-                            type="submit"
-                            style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)))' }}
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-white shadow-lg shadow-sv-accent/40 transition-transform active:scale-95 flex-shrink-0"
-                          >
-                            <Send size={18} />
-                          </button>
-                        ) : (
-                          <button type="button" onClick={startRecording} className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:bg-white/10 text-white/50 hover:text-white bg-white/5">
-                            <Mic size={20} />
-                          </button>
-                        )}
-                      </form>
+                        </form>
+                      </div>
                     </div>
                   </div>
+
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                 </div>
 
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
-              </div>
-
-              {/* ── Profile / Info Sidebar ── */}
-              <AnimatePresence>
-                {showProfile && (
-                  <>
-                    {/* Mobile backdrop */}
-                    <motion.div
-                      className="fixed inset-0 bg-black/60 z-[48] md:hidden"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      onClick={() => setShowProfile(false)}
-                    />
-                    <motion.aside
-                      className="fixed md:relative right-0 top-0 h-full z-[49] border-l overflow-y-auto scrollbar-custom md:flex-shrink-0"
-                      style={{
-                        width: 'min(85vw, 280px)',
-                        background: 'hsl(var(--sv-surface))',
-                        borderColor: 'hsl(var(--sv-border) / 0.5)',
-                      }}
-                      initial={{ x: '100%', opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    >
-                      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
-                        <span className="font-semibold text-sm" style={{ color: 'hsl(var(--sv-text))' }}>
-                          {selectedConversation.type === "group" ? "Group Info" : "Contact Info"}
-                        </span>
-                        <button onClick={() => setShowProfile(false)} className="sv-icon-btn w-7 h-7 rounded-lg"><X size={14} /></button>
-                      </div>
-                      <div className="p-5 flex flex-col items-center gap-3 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
-                        <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={18} online={isUserOnline(selectedConversation)} />
-                        <div className="text-center">
-                          <p className="font-semibold" style={{ color: 'hsl(var(--sv-text))' }}>{getConversationName(selectedConversation)}</p>
-                          {selectedConversation.type !== "group" && (
-                            <p className="text-xs mt-0.5 flex items-center gap-1.5 justify-center" style={{ color: isUserOnline(selectedConversation) ? 'hsl(var(--sv-online))' : 'hsl(var(--sv-text-3))' }}>
-                              {isUserOnline(selectedConversation)
-                                ? <><span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--sv-online))', flexShrink: 0 }} />Online</>
-                                : fmtLastSeen(getLastSeen(selectedConversation))}
-                            </p>
-                          )}
+                {/* ── Profile / Info Sidebar ── */}
+                <AnimatePresence>
+                  {showProfile && (
+                    <>
+                      {/* Mobile backdrop */}
+                      <motion.div
+                        className="fixed inset-0 bg-black/60 z-[48] md:hidden"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setShowProfile(false)}
+                      />
+                      <motion.aside
+                        className="fixed md:relative right-0 top-0 h-full z-[49] border-l overflow-y-auto scrollbar-custom md:flex-shrink-0"
+                        style={{
+                          width: 'min(85vw, 280px)',
+                          background: 'hsl(var(--sv-surface))',
+                          borderColor: 'hsl(var(--sv-border) / 0.5)',
+                        }}
+                        initial={{ x: '100%', opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: '100%', opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      >
+                        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                          <span className="font-semibold text-sm" style={{ color: 'hsl(var(--sv-text))' }}>
+                            {selectedConversation.type === "group" ? "Group Info" : "Contact Info"}
+                          </span>
+                          <button onClick={() => setShowProfile(false)} className="sv-icon-btn w-7 h-7 rounded-lg"><X size={14} /></button>
+                        </div>
+                        <div className="p-5 flex flex-col items-center gap-3 border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                          <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={18} online={isUserOnline(selectedConversation)} />
+                          <div className="text-center">
+                            <p className="font-semibold" style={{ color: 'hsl(var(--sv-text))' }}>{getConversationName(selectedConversation)}</p>
+                            {selectedConversation.type !== "group" && (
+                              <p className="text-xs mt-0.5 flex items-center gap-1.5 justify-center" style={{ color: isUserOnline(selectedConversation) ? 'hsl(var(--sv-online))' : 'hsl(var(--sv-text-3))' }}>
+                                {isUserOnline(selectedConversation)
+                                  ? <><span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'hsl(var(--sv-online))', flexShrink: 0 }} />Online</>
+                                  : fmtLastSeen(getLastSeen(selectedConversation))}
+                              </p>
+                            )}
+                            {selectedConversation.type === "group" && (
+                              <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                                {selectedConversation.participants?.length} members
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="p-4 space-y-1">
+                          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'hsl(var(--sv-text-3))' }}>Actions</p>
+                          <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowBgPicker(true); setShowProfile(false); }}>
+                            <ImageIcon size={15} /> Change Background
+                          </button>
                           {selectedConversation.type === "group" && (
-                            <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--sv-text-3))' }}>
-                              {selectedConversation.participants?.length} members
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="p-4 space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'hsl(var(--sv-text-3))' }}>Actions</p>
-                        <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowBgPicker(true); setShowProfile(false); }}>
-                          <ImageIcon size={15} /> Change Background
-                        </button>
-                        {selectedConversation.type === "group" && (
-                          <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowGroupInfoModal(true); setShowProfile(false); }}>
-                            <Settings size={15} /> Group Settings
-                          </button>
-                        )}
-                        <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowEphemeralModal(true); setShowProfile(false); }}>
-                          <Clock size={15} /> Disappearing Messages
-                        </button>
-                        <button className="sv-dropdown-item danger w-full rounded-xl" onClick={() => {
-                          setShowClearConfirm(true);
-                          setShowProfile(false);
-                        }}>
-                          <Trash2 size={15} /> Clear Chat
-                        </button>
-                      </div>
-
-                      <div className="flex-1 flex flex-col min-h-0">
-                        <div className="px-4 py-2 flex items-center justify-between bg-white/5 border-y" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
-                          <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Media, Links & Docs</p>
-                        </div>
-                        <div className="flex border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
-                          {['media', 'files', 'links'].map(tab => (
-                            <button
-                              key={tab}
-                              onClick={() => setMediaTab(tab)}
-                              className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-tighter transition-colors border-b-2 ${mediaTab === tab ? 'border-sv-accent text-sv-accent' : 'border-transparent text-white/40 hover:text-white'}`}
-                            >
-                              {tab}
+                            <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowGroupInfoModal(true); setShowProfile(false); }}>
+                              <Settings size={15} /> Group Settings
                             </button>
-                          ))}
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-3 scrollbar-custom">
-                          {conversationMedia.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-10 opacity-30">
-                              <ImageIcon size={24} className="mb-2" />
-                              <p className="text-[10px] font-bold uppercase">No {mediaTab} yet</p>
-                            </div>
-                          ) : (
-                            <div className={mediaTab === 'media' ? "grid grid-cols-3 gap-1" : "flex flex-col gap-2"}>
-                              {conversationMedia.map(m => (
-                                <div key={m._id} className="group relative">
-                                  {mediaTab === 'media' ? (
-                                    <div
-                                      onClick={() => window.open(m.mediaUrl, '_blank')}
-                                      className="aspect-square rounded-lg overflow-hidden bg-white/5 cursor-pointer border border-white/5"
-                                    >
-                                      <img src={m.mediaUrl || m.thumbnail} className="w-full h-full object-cover" alt="" />
-                                    </div>
-                                  ) : (
-                                    <div
-                                      onClick={() => window.open(m.mediaUrl || m.content, '_blank')}
-                                      className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer transition-colors"
-                                    >
-                                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 text-sv-accent">
-                                        {mediaTab === 'files' ? <File size={14} /> : <MessageSquare size={14} />}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] font-bold truncate">{m.fileName || m.content}</p>
-                                        <p className="text-[9px] opacity-40 uppercase font-black">{new Date(m.createdAt).toLocaleDateString()}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
                           )}
+                          <button className="sv-dropdown-item w-full rounded-xl" onClick={() => { setShowEphemeralModal(true); setShowProfile(false); }}>
+                            <Clock size={15} /> Disappearing Messages
+                          </button>
+                          <button className="sv-dropdown-item danger w-full rounded-xl" onClick={() => {
+                            setShowClearConfirm(true);
+                            setShowProfile(false);
+                          }}>
+                            <Trash2 size={15} /> Clear Chat
+                          </button>
                         </div>
-                      </div>
-                    </motion.aside>
-                  </>
-                )}
-              </AnimatePresence>
 
-            </div>/* end flex-row wrapper */
-          ) : (
-            /* ── Empty state (V2 Premium) ── */
-            <div className={`flex-1 flex flex-col items-center justify-center text-center px-8 ${currentBgCls}`}>
-              <AnimatePresence mode="wait">
-                {activeRailTab === 'profile' ? (
-                  <motion.div
-                    key="profile-empty"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex flex-col items-center"
-                  >
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-sv-accent/20 mb-6 shadow-2xl">
-                      <img src={user?.avatar || '/default-avatar.png'} alt={user?.name} className="w-full h-full object-cover" />
-                    </div>
-                    <h2 className="text-3xl font-black tracking-tighter mb-2 italic">Your Profile</h2>
-                    <p className="text-sm text-white/40 max-w-xs">{user?.name} • {user?.bio || "Ready to chat"}</p>
-                  </motion.div>
-                ) : activeRailTab === 'settings' ? (
-                  <motion.div
-                    key="settings-empty"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex flex-col items-center"
-                  >
-                    <div className="w-24 h-24 rounded-[32px] bg-white/5 flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
-                      <Settings size={40} className="text-sv-accent animate-spin-slow" />
-                    </div>
-                    <h2 className="text-3xl font-black tracking-tighter mb-2">Samvaad Settings</h2>
-                    <p className="text-sm text-white/40 max-w-xs">Personalize your vibes, privacy, and active sessions.</p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="default-empty"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex flex-col items-center"
-                  >
+                        <div className="flex-1 flex flex-col min-h-0">
+                          <div className="px-4 py-2 flex items-center justify-between bg-white/5 border-y" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-white/40">Media, Links & Docs</p>
+                          </div>
+                          <div className="flex border-b" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                            {['media', 'files', 'links'].map(tab => (
+                              <button
+                                key={tab}
+                                onClick={() => setMediaTab(tab)}
+                                className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-tighter transition-colors border-b-2 ${mediaTab === tab ? 'border-sv-accent text-sv-accent' : 'border-transparent text-white/40 hover:text-white'}`}
+                              >
+                                {tab}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex-1 overflow-y-auto p-3 scrollbar-custom">
+                            {conversationMedia.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center py-10 opacity-30">
+                                <ImageIcon size={24} className="mb-2" />
+                                <p className="text-[10px] font-bold uppercase">No {mediaTab} yet</p>
+                              </div>
+                            ) : (
+                              <div className={mediaTab === 'media' ? "grid grid-cols-3 gap-1" : "flex flex-col gap-2"}>
+                                {conversationMedia.map(m => (
+                                  <div key={m._id} className="group relative">
+                                    {mediaTab === 'media' ? (
+                                      <div
+                                        onClick={() => window.open(m.mediaUrl, '_blank')}
+                                        className="aspect-square rounded-lg overflow-hidden bg-white/5 cursor-pointer border border-white/5"
+                                      >
+                                        <img src={m.mediaUrl || m.thumbnail} className="w-full h-full object-cover" alt="" />
+                                      </div>
+                                    ) : (
+                                      <div
+                                        onClick={() => window.open(m.mediaUrl || m.content, '_blank')}
+                                        className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer transition-colors"
+                                      >
+                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 text-sv-accent">
+                                          {mediaTab === 'files' ? <File size={14} /> : <MessageSquare size={14} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[11px] font-bold truncate">{m.fileName || m.content}</p>
+                                          <p className="text-[9px] opacity-40 uppercase font-black">{new Date(m.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.aside>
+                    </>
+                  )}
+                </AnimatePresence>
+
+              </div>/* end flex-row wrapper */
+            ) : (
+              /* ── Empty state (V2 Premium) ── */
+              <div className={`flex-1 flex flex-col items-center justify-center text-center px-8 ${currentBgCls}`}>
+                <AnimatePresence mode="wait">
+                  {activeRailTab === 'profile' ? (
                     <motion.div
-                      animate={{ scale: [1, 1.08, 1], rotate: [0, 2, -2, 0] }}
-                      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-24 h-24 rounded-[28px] flex items-center justify-center mb-8 relative"
-                      style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)/0.15), hsl(var(--sv-accent-2)/0.08))', border: '1px solid hsl(var(--sv-accent)/0.15)' }}>
-                      <MessageSquare size={40} style={{ color: 'hsl(var(--sv-accent))' }} />
-                      <div className="absolute inset-0 rounded-[28px] animate-pulse" style={{ background: 'radial-gradient(circle, hsl(var(--sv-accent)/0.1), transparent 70%)' }} />
+                      key="profile-empty"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex flex-col items-center"
+                    >
+                      <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-sv-accent/20 mb-6 shadow-2xl">
+                        <img src={user?.avatar || '/default-avatar.png'} alt={user?.name} className="w-full h-full object-cover" />
+                      </div>
+                      <h2 className="text-3xl font-black tracking-tighter mb-2 italic">Your Profile</h2>
+                      <p className="text-sm text-white/40 max-w-xs">{user?.name} • {user?.bio || "Ready to chat"}</p>
                     </motion.div>
-                    <h2 className="text-2xl font-black tracking-tight mb-3 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-                      Welcome to Samvaad
-                    </h2>
-                    <p className="text-sm max-w-sm leading-relaxed mb-8 text-white/40">
-                      Your conversations are waiting. Select a chat to continue or start a new one.
-                    </p>
-                    <button id="empty-new-chat-btn" onClick={() => setShowNewChatModal(true)}
-                      className="px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-xl"
-                      style={{ background: 'hsl(var(--sv-accent))', color: 'white', boxShadow: '0 8px 32px hsl(var(--sv-accent)/0.3)' }}>
-                      <Plus size={16} /> Start a Conversation
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
+                  ) : activeRailTab === 'settings' ? (
+                    <motion.div
+                      key="settings-empty"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex flex-col items-center"
+                    >
+                      <div className="w-24 h-24 rounded-[32px] bg-white/5 flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
+                        <Settings size={40} className="text-sv-accent animate-spin-slow" />
+                      </div>
+                      <h2 className="text-3xl font-black tracking-tighter mb-2">Samvaad Settings</h2>
+                      <p className="text-sm text-white/40 max-w-xs">Personalize your vibes, privacy, and active sessions.</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="default-empty"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="flex flex-col items-center"
+                    >
+                      <motion.div
+                        animate={{ scale: [1, 1.08, 1], rotate: [0, 2, -2, 0] }}
+                        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-24 h-24 rounded-[28px] flex items-center justify-center mb-8 relative"
+                        style={{ background: 'linear-gradient(135deg, hsl(var(--sv-accent)/0.15), hsl(var(--sv-accent-2)/0.08))', border: '1px solid hsl(var(--sv-accent)/0.15)' }}>
+                        <MessageSquare size={40} style={{ color: 'hsl(var(--sv-accent))' }} />
+                        <div className="absolute inset-0 rounded-[28px] animate-pulse" style={{ background: 'radial-gradient(circle, hsl(var(--sv-accent)/0.1), transparent 70%)' }} />
+                      </motion.div>
+                      <h2 className="text-2xl font-black tracking-tight mb-3 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                        Welcome to Samvaad
+                      </h2>
+                      <p className="text-sm max-w-sm leading-relaxed mb-8 text-white/40">
+                        Your conversations are waiting. Select a chat to continue or start a new one.
+                      </p>
+                      <button id="empty-new-chat-btn" onClick={() => setShowNewChatModal(true)}
+                        className="px-6 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-xl"
+                        style={{ background: 'hsl(var(--sv-accent))', color: 'white', boxShadow: '0 8px 32px hsl(var(--sv-accent)/0.3)' }}>
+                        <Plus size={16} /> Start a Conversation
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )
+          }
 
           {/* ── Clipboard Sync panel ── */}
           <AnimatePresence>
@@ -1447,10 +1519,68 @@ const Chat = ({ token }) => {
               </>
             )}
           </AnimatePresence>
-        </main>
+
+
+          {/* ── Mobile Custom Bottom Navigation (as in image) ── */}
+          <div className="md:hidden sv-bottom-nav-fixed">
+            <div className="sv-bottom-nav-inner shadow-2xl">
+              {/* Equal placement by using flex containers for left and right */}
+              <div className="flex-1 flex items-center justify-around pr-4">
+                {/* Status */}
+                <button
+                  onClick={() => setActiveRailTab("status")}
+                  className={`flex flex-col items-center gap-1 transition-colors ${activeRailTab === 'status' ? 'text-[#4a4ae2]' : 'text-white/40'}`}
+                >
+                  <CircleDot size={20} />
+                  <span className="text-[10px] font-medium">Status</span>
+                </button>
+
+                {/* Calls */}
+                <button
+                  onClick={() => setActiveRailTab("calls")}
+                  className={`flex flex-col items-center gap-1 transition-colors ${activeRailTab === 'calls' ? 'text-[#4a4ae2]' : 'text-white/40'}`}
+                >
+                  <Phone size={20} />
+                  <span className="text-[10px] font-medium">Calls</span>
+                </button>
+              </div>
+
+              {/* Floating Center Button (cutout) */}
+              <div className="sv-fab-cutout">
+                <button
+                  onClick={() => setShowNewChatModal(true)}
+                  className="sv-fab"
+                >
+                  <Plus size={32} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <div className="flex-1 flex items-center justify-around pl-4">
+                {/* Chat */}
+                <button
+                  onClick={() => { setActiveRailTab("chats"); setMobileShowSidebar(true); }}
+                  className={`flex flex-col items-center gap-1 transition-colors ${activeRailTab === 'chats' ? 'text-[#4a4ae2]' : 'text-white/40'}`}
+                >
+                  <MessageSquare size={20} fill={activeRailTab === 'chats' ? "currentColor" : "none"} />
+                  <span className="text-[10px] font-medium">Chat</span>
+                </button>
+
+                {/* Settings */}
+                <button
+                  onClick={() => setActiveRailTab("settings")}
+                  className={`flex flex-col items-center gap-1 transition-colors ${activeRailTab === 'settings' ? 'text-[#4a4ae2]' : 'text-white/40'}`}
+                >
+                  <Settings size={20} />
+                  <span className="text-[10px] font-medium">Settings</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </main >
+
 
         {/* ═══ Background Picker Modal ═══ */}
-        <AnimatePresence>
+        < AnimatePresence >
           {showBgPicker && (
             <motion.div
               className="fixed inset-0 z-[300] flex items-center justify-center p-4"
@@ -1487,10 +1617,10 @@ const Chat = ({ token }) => {
               </motion.div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence >
 
         {/* ═══ Modals ═══ */}
-        <NewChatModal isOpen={showNewChatModal} onClose={() => setShowNewChatModal(false)} onCreateChat={handleNewChat} token={token} />
+        < NewChatModal isOpen={showNewChatModal} onClose={() => setShowNewChatModal(false)} onCreateChat={handleNewChat} token={token} />
         <PollModal isOpen={showPollModal} onClose={() => setShowPollModal(false)} onSubmit={handleCreatePoll} />
         <ScheduleModal isOpen={showScheduleModal} onClose={() => setShowScheduleModal(false)} onSubmit={handleScheduleMessage} />
         <CodeModal isOpen={showCodeModal} onClose={() => setShowCodeModal(false)} onSubmit={handleSendCode} />

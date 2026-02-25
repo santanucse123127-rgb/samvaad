@@ -5,6 +5,11 @@ import nodemailer from 'nodemailer';
  * For Gmail: You need to use an "App Password" if 2FA is enabled
  */
 export const sendEmail = async (to, subject, text, html) => {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('❌ Email credentials missing in .env file (EMAIL_USER or EMAIL_PASS)');
+        return { success: false, error: 'Email credentials not configured' };
+    }
+
     try {
         const transporter = nodemailer.createTransport({
             service: 'gmail',

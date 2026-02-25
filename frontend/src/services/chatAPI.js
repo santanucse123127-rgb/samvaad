@@ -529,7 +529,28 @@ export const getUsers = async (token) => {
   return response.json();
 };
 
+export const apiUpdateProfile = async (data) => {
+  const token = localStorage.getItem("token");
+  const res = await fetch("/api/users/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const apiUpdateSettings = async (settings) => {
+  const token = localStorage.getItem("token");
+  const res = await fetch("/api/users/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ settings }),
+  });
+  return res.json();
+};
+
 // ✅ Export all other methods
+
 export const getConversations = api.getConversations;
 export const getMessages = api.getMessages;
 export const sendMessage = api.sendMessage;

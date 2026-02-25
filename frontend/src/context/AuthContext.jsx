@@ -282,6 +282,22 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const uploadAvatar = useCallback(async (formData) => {
+    try {
+      const response = await userAPI.uploadAvatar(formData);
+      if (response.data.success) {
+        setUser(response.data.data);
+        toast({ title: "Avatar Updated", description: "Your profile picture has been changed.", variant: "default" });
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      toast({ title: "Upload Failed", description: error.response?.data?.message || "Something went wrong", variant: "destructive" });
+      return { success: false };
+    }
+  }, []);
+
   const updateSettings = useCallback(async (settings) => {
     try {
       const response = await userAPI.updateSettings({ settings });
@@ -340,9 +356,9 @@ export const AuthProvider = ({ children }) => {
 
   const value = React.useMemo(() => ({
     user, loading, token, register, login, sendOTP, verifyOTP, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
-    isLocked, updateAppLock, unlockApp
+    isLocked, updateAppLock, unlockApp, uploadAvatar
   }), [user, loading, token, register, login, sendOTP, verifyOTP, loginWithToken, logout, updateUser, updateProfile, updateSettings, syncContacts,
-    isLocked, updateAppLock, unlockApp]);
+    isLocked, updateAppLock, unlockApp, uploadAvatar]);
 
   return (
     <AuthContext.Provider value={value}>
