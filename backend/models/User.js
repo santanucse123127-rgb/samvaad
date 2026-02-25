@@ -101,6 +101,38 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: true,
     },
+    theme: {
+      type: String,
+      default: 'dark',
+    },
+    darkMode: {
+      type: Boolean,
+      default: true,
+    },
+    wallpaper: {
+      type: String,
+      default: 'default',
+    },
+    fontSize: {
+      type: String,
+      default: 'medium',
+    },
+    notificationTones: {
+      type: Boolean,
+      default: true,
+    },
+    highPriority: {
+      type: Boolean,
+      default: true,
+    },
+    reactionNotifications: {
+      type: Boolean,
+      default: true,
+    },
+    groupNotifications: {
+      type: Boolean,
+      default: true,
+    },
   },
   contacts: [{
     name: String,

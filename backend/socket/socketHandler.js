@@ -80,6 +80,23 @@ export const initializeSocket = (io) => {
         console.log(`👤 User ${socket.userId} auto-joined room: ${conv._id}`);
       });
 
+      // Mark all pending messages as delivered for this user across all their chats
+      const pendingMessages = await Message.find({
+        conversationId: { $in: conversations.map(c => c._id) },
+        sender: { $ne: socket.userId },
+        status: 'sent'
+      });
+
+      for (const msg of pendingMessages) {
+        await msg.markAsDelivered(socket.userId);
+        // Notify the sender
+        io.to(msg.sender.toString()).emit('message-status-updated', {
+          messageId: msg._id,
+          status: 'delivered',
+          userId: socket.userId
+        });
+      }
+
       // Handle joining a specific conversation
       socket.on("join-conversation", async (conversationId) => {
         socket.join(conversationId);

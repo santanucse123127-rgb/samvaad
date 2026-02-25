@@ -515,6 +515,18 @@ const api = {
       body: JSON.stringify(data)
     });
     return response.json();
+  },
+
+  async syncContacts(contacts, token) {
+    const response = await fetch(`${API_URL}/users/sync-contacts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ contacts })
+    });
+    return response.json();
   }
 };
 

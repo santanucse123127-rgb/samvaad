@@ -181,6 +181,18 @@ export const sendMessage = async (req, res) => {
       }
     });
 
+    // Check online status for delivery
+    const participants = conversation.participants.filter(p => p.toString() !== req.user._id.toString());
+    const onlineParticipants = await User.find({ _id: { $in: participants }, status: 'online' });
+
+    if (onlineParticipants.length > 0) {
+      if (conversation.type === 'one-on-one') {
+        message.status = 'delivered';
+        message.deliveredTo.push({ userId: onlineParticipants[0]._id });
+      }
+    }
+
+    await message.save();
     await conversation.save();
 
     // Populate message before sending
@@ -340,6 +352,18 @@ export const uploadMedia = async (req, res) => {
       }
     });
 
+    // Check online status for delivery
+    const participants = conversation.participants.filter(p => p.toString() !== req.user._id.toString());
+    const onlineParticipants = await User.find({ _id: { $in: participants }, status: 'online' });
+
+    if (onlineParticipants.length > 0) {
+      if (conversation.type === 'one-on-one') {
+        message.status = 'delivered';
+        message.deliveredTo.push({ userId: onlineParticipants[0]._id });
+      }
+    }
+
+    await message.save();
     await conversation.save();
 
     const populatedMessage = await Message.findById(message._id).populate(

@@ -6,8 +6,8 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AnimatePresence } from "framer-motion";
 import { MessageSquare } from "lucide-react";
 
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+// import Login from "./pages/Login";
+// import Register from "./pages/Register";
 import Chat from "./pages/Chat";
 import QRLogin from "./pages/QRLogin";
 import NotFound from "./pages/NotFound";
@@ -19,7 +19,11 @@ import { ClipboardProvider } from "./context/ClipboardContext";
 import { VibeProvider } from "./context/VibeContext";
 import Index from "./pages/Index";
 import { usePushNotifications } from "./hooks/usePushNotifications";
-
+import {
+  ResponsiveWelcome,
+  ResponsiveLogin,
+  ResponsiveRegister
+} from "@/pages/ResponsiveViews";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 1000 * 30 } },
@@ -42,10 +46,13 @@ const AnimatedRoutes = () => {
     <>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
-          <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} />
+          {/* <Route path="/" element={<Index />} /> */}
+          {/* <Route path="/login" element={user ? <Navigate to="/chat" replace /> : <Login />} />
+          <Route path="/register" element={user ? <Navigate to="/chat" replace /> : <Register />} /> */}
           <Route path="/qr-login" element={user ? <Navigate to="/chat" replace /> : <QRLogin />} />
+          <Route path="/" element={<ResponsiveWelcome />} />
+          <Route path="/login" element={<ResponsiveLogin />} />
+          <Route path="/register" element={<ResponsiveRegister />} />
           <Route path="/chat"
             element={
               user ? (

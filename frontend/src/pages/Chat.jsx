@@ -86,7 +86,7 @@ const Chat = ({ token }) => {
     addReaction, notification, setNotification,
     userId, conversationWallpapers, setConversationWallpaper,
     incomingCall, activeCall, setActiveCall, createGroupConversation, groupInvite, setGroupInvite, respondGroupInvite,
-    clearChat, deleteMessage, editMessage, forwardMessage,
+    clearChat, deleteMessage, editMessage, forwardMessage, syncContacts,
     addTask, fetchTasks, toggleTaskStatus, removeTask,
     togglePin, toggleArchive, searchMessages, getConversationMedia,
     statuses
@@ -520,6 +520,10 @@ const Chat = ({ token }) => {
           token={token}
           logout={logout}
           clearChat={clearChat}
+          syncContacts={syncContacts}
+          deleteMessage={deleteMessage}
+          editMessage={editMessage}
+          forwardMessage={forwardMessage}
           statuses={statuses}
           incomingCall={incomingCall}
           activeCall={activeCall}

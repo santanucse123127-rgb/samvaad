@@ -863,6 +863,21 @@ export const ChatProvider = ({ children, token, userId }) => {
     }
   }, [token]);
 
+  const syncContacts = useCallback(async (contacts) => {
+    if (!token) return { success: false };
+    try {
+      const response = await api.syncContacts(contacts, token);
+      if (response.success) {
+        // Refresh user data if needed or just return success
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error("❌ Failed to sync contacts:", error);
+      return { success: false };
+    }
+  }, [token]);
+
   const clearChat = useCallback(async (conversationId) => {
     if (!token) return { success: false };
     try {
@@ -1086,6 +1101,7 @@ export const ChatProvider = ({ children, token, userId }) => {
     createNewConversation,
     deleteMessage,
     clearChat,
+    syncContacts,
     handleTyping,
     handleStopTyping,
     fetchConversations,

@@ -59,7 +59,10 @@ export const updateSettings = async (req, res) => {
     }
 
     if (req.body.settings) {
-      user.settings = { ...user.settings, ...req.body.settings };
+      Object.keys(req.body.settings).forEach(key => {
+        user.settings[key] = req.body.settings[key];
+      });
+      user.markModified('settings');
     }
 
     await user.save();
@@ -79,8 +82,9 @@ export const updateTheme = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      if (theme) user.theme = theme;
-      if (typeof darkMode === 'boolean') user.darkMode = darkMode;
+      if (theme) user.settings.theme = theme;
+      if (typeof darkMode === 'boolean') user.settings.darkMode = darkMode;
+      user.markModified('settings');
 
       await user.save();
 
@@ -159,6 +163,9 @@ export const searchUsers = async (req, res) => {
     const syncEnabled = user?.settings?.syncContactsEnabled;
     const syncedContacts = user?.contacts || [];
 
+    const contactEmails = syncedContacts.map(c => c.email).filter(Boolean);
+    const contactPhones = syncedContacts.map(c => c.tel).filter(Boolean);
+
     const query = {
       $and: [
         { _id: { $ne: req.user._id } },
@@ -205,6 +212,9 @@ export const getUsers = async (req, res) => {
     const user = await User.findById(req.user._id);
     const syncEnabled = user?.settings?.syncContactsEnabled;
     const syncedContacts = user?.contacts || [];
+
+    const contactEmails = syncedContacts.map(c => c.email).filter(Boolean);
+    const contactPhones = syncedContacts.map(c => c.tel).filter(Boolean);
 
     const query = { _id: { $ne: req.user._id } };
 

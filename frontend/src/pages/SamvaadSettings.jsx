@@ -49,9 +49,21 @@ const Toggle = ({ value, onChange, disabled }) => (
 const Av = ({ src, name, size = 42 }) => {
     const colors = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"];
     const bg = colors[(name?.charCodeAt(0) || 0) % colors.length];
-    return src
-        ? <img src={src} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block" }} alt="" />
-        : <div style={{ width: size, height: size, borderRadius: "50%", background: `linear-gradient(135deg,${bg}cc,${bg}88)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "white", userSelect: "none" }}>{name?.[0]?.toUpperCase() || "?"}</div>;
+    return (
+        <div style={{ position: "relative", flexShrink: 0 }}>
+            {src ? (
+                <img src={src} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block", border: "1px solid rgba(0,0,0,0.05)" }} alt="" />
+            ) : (
+                <div style={{
+                    width: size, height: size, borderRadius: "50%", background: `linear-gradient(135deg, ${bg}dd, ${bg}99)`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: size * 0.38, fontWeight: 700, color: "white", userSelect: "none"
+                }}>
+                    {name?.[0]?.toUpperCase() || "?"}
+                </div>
+            )}
+        </div>
+    );
 };
 
 // ─── Sub-page wrapper ──────────────────────────────────────────────────────────
@@ -128,8 +140,10 @@ export default function MobileSettingsContent({ onBack, user, onLogout, onUserUp
     };
 
     // ── Update avatar ──
-    const saveAvatar = async (base64) => {
-        const res = await updateProfile({ avatar: base64 });
+    const saveAvatar = async (file) => {
+        const formData = new FormData();
+        formData.append("avatar", file);
+        const res = await uploadAvatar(formData);
         if (res.success) {
             showToast("Avatar updated ✓");
         }
@@ -197,7 +211,7 @@ export default function MobileSettingsContent({ onBack, user, onLogout, onUserUp
                     ))}
 
                     {/* Log Out */}
-                    <div onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 4px", marginTop: 8, cursor: "pointer", borderTop: "1px solid #f5f5fa" }}>
+                    <div onClick={() => { if (window.confirm("Log out of your account?")) onLogout(); }} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 4px", marginTop: 8, cursor: "pointer", borderTop: "1px solid #f5f5fa" }}>
                         <div style={{ width: 42, height: 42, borderRadius: 13, background: "#fff0f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", flexShrink: 0 }}>
                             <Ico.logout />
                         </div>
@@ -260,13 +274,16 @@ function ProfileSubPage({ onBack, user, onSave, onSaveAvatar, showToast }) {
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) return showToast("Image too large (max 5MB)");
+
+        // Show local preview immediately for UX
         const reader = new FileReader();
-        reader.onload = async (ev) => {
-            setUploading(true);
-            await onSaveAvatar(ev.target.result);
-            setUploading(false);
+        reader.onload = (ev) => {
+            // Optional: local preview state if needed, but we'll wait for upload
         };
         reader.readAsDataURL(file);
+
+        setUploading(true);
+        onSaveAvatar(file).finally(() => setUploading(false));
         e.target.value = "";
     };
 
@@ -335,6 +352,8 @@ function NotificationsSubPage({ onBack, settings, onSave, showToast }) {
     const [local, setLocal] = useState({ ...settings });
     const [saving, setSaving] = useState({});
 
+    useEffect(() => { setLocal({ ...settings }); }, [settings]);
+
     const toggle = async (key) => {
         const val = !local[key];
         setLocal(p => ({ ...p, [key]: val }));
@@ -370,6 +389,8 @@ function NotificationsSubPage({ onBack, settings, onSave, showToast }) {
 function PrivacySubPage({ onBack, settings, onSave, showToast }) {
     const [local, setLocal] = useState({ ...settings });
     const [saving, setSaving] = useState({});
+
+    useEffect(() => { setLocal({ ...settings }); }, [settings]);
 
     const toggle = async (key) => {
         const val = !local[key];
@@ -432,6 +453,7 @@ function PrivacySubPage({ onBack, settings, onSave, showToast }) {
 // APPEARANCE SUB-PAGE
 // ══════════════════════════════════════════════════════════
 function AppearanceSubPage({ onBack, settings, onSave, showToast }) {
+    // Currently uses settings prop directly for selection indicators
     const themes = [
         { id: "light", label: "Light", bg: "#f9fafb", fg: "#1a1a2e" },
         { id: "dark", label: "Dark", bg: "#1a1a2e", fg: "white" },
