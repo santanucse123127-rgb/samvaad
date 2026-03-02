@@ -169,6 +169,7 @@
     background: linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)));
     color: white;
     box-shadow: 0 4px 24px -4px hsl(var(--sv-accent) / 0.45);
+    touch-action: manipulation;
   }
 
   .sv-btn-primary:hover {
@@ -187,6 +188,7 @@
     color: hsl(var(--sv-text-2));
     border: 1.5px solid hsl(var(--sv-border));
     background: transparent;
+    touch-action: manipulation;
   }
 
   .sv-btn-ghost:hover {
@@ -198,6 +200,7 @@
   .sv-icon-btn {
     @apply flex items-center justify-center rounded-xl transition-all;
     color: hsl(var(--sv-text-2));
+    touch-action: manipulation;
   }
 
   .sv-icon-btn:hover {

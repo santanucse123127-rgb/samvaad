@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Phone, PhoneOff, Video, VideoOff, Mic, MicOff,
-    Volume2, VolumeX, User, PhoneCall, Minimize2, Maximize2,
+    Volume2, VolumeX, User, PhoneCall, Minimize2, Maximize2, FlipHorizontal,
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import socketService from '../../services/socket';
@@ -89,6 +89,7 @@ const CallInterface = () => {
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [callStatus, setCallStatus] = useState('idle');
     const [minimized, setMinimized] = useState(false);
+    const [isFrontCamera, setIsFrontCamera] = useState(true);
 
     /* ── refs — zero stale-closure risk ── */
     const pcRef = useRef(null);
@@ -176,11 +177,16 @@ const CallInterface = () => {
     }, [setActiveCall, setIncomingCall]);
 
     /* ── get user media ── */
-    const getMedia = useCallback(async (withVideo = false) => {
+    const getMedia = useCallback(async (withVideo = false, useFrontCamera = true) => {
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
         try {
             return await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-                video: withVideo ? { width: 1280, height: 720 } : false,
+                video: withVideo
+                    ? (isMobile
+                        ? { facingMode: useFrontCamera ? 'user' : 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                        : { width: 1280, height: 720 })
+                    : false,
             });
         } catch (e) {
             console.error('getUserMedia error:', e.name, e.message);
@@ -284,16 +290,22 @@ const CallInterface = () => {
 
         const onRejected = () => { console.log('📞 rejected'); cleanup(); };
         const onEnded = () => { console.log('📞 ended'); cleanup(); };
+        const onTimeout = () => { console.log('📞 call timed out'); cleanup(); };
+        const onCancelled = () => { console.log('📞 call cancelled by caller'); cleanup(); };
 
         socketService.on('call-answered', onAnswered);
         socketService.on('ice-candidate', onIce);
         socketService.on('call-rejected', onRejected);
         socketService.on('call-ended', onEnded);
+        socketService.on('call-timeout', onTimeout);
+        socketService.on('call-cancelled', onCancelled);
         return () => {
             socketService.off('call-answered', onAnswered);
             socketService.off('ice-candidate', onIce);
             socketService.off('call-rejected', onRejected);
             socketService.off('call-ended', onEnded);
+            socketService.off('call-timeout', onTimeout);
+            socketService.off('call-cancelled', onCancelled);
         };
     }, [cleanup, drainIce]);
 
@@ -349,6 +361,36 @@ const CallInterface = () => {
         localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = isVideoOff; });
         setIsVideoOff(p => !p);
     };
+    const switchCamera = useCallback(async () => {
+        if (!isVideo || !localStreamRef.current) return;
+        const newFacing = !isFrontCamera;
+        // Stop current video tracks
+        localStreamRef.current.getVideoTracks().forEach(t => t.stop());
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: newFacing ? 'user' : 'environment' },
+                audio: false,
+            });
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            if (newVideoTrack) {
+                // Replace track in peer connection
+                const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
+                if (sender) await sender.replaceTrack(newVideoTrack);
+                // Update local stream
+                const updatedStream = new MediaStream([
+                    ...localStreamRef.current.getAudioTracks(),
+                    newVideoTrack,
+                ]);
+                localStreamRef.current = updatedStream;
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = updatedStream;
+                }
+                setIsFrontCamera(newFacing);
+            }
+        } catch (e) {
+            console.error('switchCamera error:', e);
+        }
+    }, [isVideo, isFrontCamera]);
 
     /* ══════════════════════════════════════════════════════════
        ALWAYS render the hidden audio element so the ref is
@@ -607,6 +649,9 @@ const CallInterface = () => {
                                 <RoundBtn icon={Volume2} label="Speaker" onClick={() => { }} size={40} />
                                 <RoundBtn icon={PhoneOff} label="End" danger onClick={endCall} size={44} />
                                 {isVideo && <RoundBtn icon={isVideoOff ? VideoOff : Video} label={isVideoOff ? 'Start' : 'Stop'} active={isVideoOff} onClick={toggleVideo} size={40} />}
+                                {isVideo && /Mobi|Android/i.test(navigator.userAgent) && (
+                                    <RoundBtn icon={FlipHorizontal} label="Flip" onClick={switchCamera} size={40} />
+                                )}
                             </div>
                         </div>
                     )}
