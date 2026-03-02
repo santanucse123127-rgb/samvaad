@@ -522,6 +522,15 @@ export const ChatProvider = ({ children, token, userId }) => {
     if (!selectedConversation) return;
 
     if (prevConversationRef.current) {
+      // Stop typing indicator in the previous conversation before leaving
+      if (isTypingRef.current) {
+        socketService.sendStopTyping(prevConversationRef.current);
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+      }
       socketService.leaveConversation(prevConversationRef.current);
     }
 
