@@ -10,6 +10,7 @@ export const usePushNotifications = (token) => {
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     const urlBase64ToUint8Array = (base64String) => {
+        if (!base64String) return new Uint8Array(0);
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding)
             .replace(/-/g, '+')
