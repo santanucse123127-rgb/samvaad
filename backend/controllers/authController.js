@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import { sendSMS } from "../utils/sms.js";
 import { sendEmail } from "../utils/email.js";
+import OTP from "../models/OTP.js";
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -10,13 +11,24 @@ export const register = async (req, res) => {
   try {
     const { name, email, password, phone, avatar } = req.body;
 
-    // Check if user exists
-    const userExists = await User.findOne({ email });
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "Please provide name, email and password" });
+    }
+
+    // Check if user exists by email or phone
+    const userExists = await User.findOne({ 
+      $or: [
+        { email },
+        { phone: phone || '___none___' } // Avoid null match if phone not provided
+      ]
+    });
 
     if (userExists) {
+      const field = userExists.email === email ? "email" : "phone";
       return res.status(400).json({
         success: false,
-        message: "User already exists with this email",
+        message: `User already exists with this ${field}`,
       });
     }
 
@@ -147,42 +159,21 @@ export const sendOTP = async (req, res) => {
 
     // Generate 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Find or create user
-    let user;
-    if (phone) {
-      user = await User.findOne({ phone });
-    } else {
-      user = await User.findOne({ email });
-    }
+    const identifier = phone || email;
+    const type = phone ? 'phone' : 'email';
 
-    if (!user) {
-      if (phone) {
-        const tempEmail = `user_${phone}@samvaad.app`;
-        user = await User.create({
-          phone,
-          name: phone,
-          email: tempEmail,
-          status: "offline"
-        });
-      } else {
-        const tempName = email.split('@')[0];
-        user = await User.create({
-          email,
-          name: tempName,
-          status: "offline"
-        });
-      }
-    }
-
-    user.otp = otp;
-    user.otpExpires = otpExpires;
-    await user.save();
+    // Save to OTP model (upsert)
+    await OTP.findOneAndUpdate(
+      { identifier },
+      { otp, expiresAt, type },
+      { upsert: true, new: true }
+    );
 
     let sentVia = "";
-    // Send OTP via Email if user has email
-    if (user.email && user.email.includes('@') && !user.email.endsWith('.app')) {
+    // Send OTP via Email if email provided
+    if (email && email.includes('@')) {
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #008080; text-align: center;">Samvaad Verification</h2>
@@ -196,13 +187,13 @@ export const sendOTP = async (req, res) => {
           <p style="font-size: 12px; color: #888; text-align: center;">Sent by Samvaad App</p>
         </div>
       `;
-      await sendEmail(user.email, "Your Samvaad Verification Code", `Your code is ${otp}`, emailHtml);
+      await sendEmail(email, "Your Samvaad Verification Code", `Your code is ${otp}`, emailHtml);
       sentVia = "email";
     }
 
     // Also send via SMS mock if phone exists
-    if (user.phone) {
-      await sendSMS(user.phone, `Your Samvaad verification code is: ${otp}. Valid for 10 minutes.`);
+    if (phone) {
+      await sendSMS(phone, `Your Samvaad verification code is: ${otp}. Valid for 10 minutes.`);
       if (!sentVia) sentVia = "sms";
     }
 
@@ -227,33 +218,48 @@ export const verifyOTP = async (req, res) => {
       return res.status(400).json({ success: false, message: "Identifier and OTP are required" });
     }
 
-    let query = {};
-    if (phone) query = { phone };
-    else query = { email };
+    const identifier = phone || email;
+    const otpDoc = await OTP.findOne({ identifier, otp });
 
-    const user = await User.findOne(query).select("+otp +otpExpires");
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    // Check OTP
-    if (user.otp !== otp || user.otpExpires < Date.now()) {
+    if (!otpDoc || otpDoc.expiresAt < Date.now()) {
       return res.status(401).json({ success: false, message: "Invalid or expired OTP" });
     }
 
-    // Clear OTP after successful verify
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    user.status = "online";
-    user.lastSeen = Date.now();
-    await user.save();
+    // Find user
+    let user;
+    if (phone) user = await User.findOne({ phone });
+    else user = await User.findOne({ email });
+
+    // Create user if not exists (Register on first login)
+    if (!user) {
+      if (phone) {
+        user = await User.create({
+          phone,
+          name: phone,
+          email: `user_${phone}@samvaad.app`,
+          status: "online",
+          lastSeen: Date.now()
+        });
+      } else {
+        user = await User.create({
+          email,
+          name: email.split('@')[0],
+          status: "online",
+          lastSeen: Date.now()
+        });
+      }
+    } else {
+      user.status = "online";
+      user.lastSeen = Date.now();
+      await user.save();
+    }
+
+    // Delete OTP after success
+    await OTP.deleteOne({ _id: otpDoc._id });
 
     const token = generateToken(user._id);
     const userObj = user.toObject();
     delete userObj.password;
-    delete userObj.otp;
-    delete userObj.otpExpires;
     userObj.token = token;
 
     res.json({

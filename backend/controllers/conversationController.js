@@ -145,16 +145,31 @@ export const deleteConversation = async (req, res) => {
       });
     }
 
-    // Delete all messages in conversation
-    await Message.deleteMany({ conversationId: req.params.id });
+    // Remove user from participants
+    conversation.participants = conversation.participants.filter(
+      p => p.toString() !== req.user._id.toString()
+    );
 
-    // Delete conversation
-    await Conversation.findByIdAndDelete(req.params.id);
+    if (conversation.participants.length === 0) {
+      // Delete all messages in conversation
+      await Message.deleteMany({ conversationId: req.params.id });
 
-    res.json({
-      success: true,
-      message: 'Conversation deleted successfully',
-    });
+      // Delete conversation record
+      await Conversation.findByIdAndDelete(req.params.id);
+
+      res.json({
+        success: true,
+        message: 'Conversation and messages deleted permanently',
+      });
+    } else {
+      // Just remove the user from participants and save
+      await conversation.save();
+
+      res.json({
+        success: true,
+        message: 'Conversation removed for you',
+      });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({

@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dbConnect } from "./config/db.js";
 import { initializeSocket } from "./socket/socketHandler.js";
+import { initializeScheduler } from "./services/schedulerService.js";
 import Message from "./models/Message.js";
 import Conversation from "./models/Conversation.js";
 import Task from "./models/Task.js";
@@ -108,15 +109,17 @@ app.use(compression());
 
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.CLIENT_URL || "http://localhost:8080",
+    credentials: true,
   }),
 );
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Initialize Socket.io handlers
+// Initialize Socket.io and Scheduler
 initializeSocket(io);
+initializeScheduler(io);
 
 // Make io accessible to routes
 app.set("io", io);
@@ -172,88 +175,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Scheduled Message Checker
-const checkScheduledMessages = async (io) => {
-  try {
-    const now = new Date();
-    const scheduledMessages = await Message.find({
-      status: "scheduled",
-      isScheduled: true,
-      scheduledAt: { $lte: now },
-    }).populate("sender", "name avatar status");
-
-    for (const message of scheduledMessages) {
-      // Update message status
-      message.status = "sent";
-      message.isScheduled = false; // Mark as processed
-      await message.save();
-
-      // Update conversation
-      const conversation = await Conversation.findById(message.conversationId);
-      if (conversation) {
-        conversation.lastMessage = message._id;
-        conversation.updatedAt = Date.now();
-
-        // Update unread counts
-        conversation.participants.forEach((participantId) => {
-          if (participantId.toString() !== message.sender._id.toString()) {
-            const currentCount =
-              conversation.unreadCount.get(participantId.toString()) || 0;
-            conversation.unreadCount.set(
-              participantId.toString(),
-              currentCount + 1,
-            );
-          }
-        });
-        await conversation.save();
-
-        // Emit socket event
-        if (io) {
-          io.to(conversation._id.toString()).emit("message-received", message);
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Error checking scheduled messages:", error);
-  }
-};
-
-// Run scheduler every minute
-setInterval(() => {
-  checkScheduledMessages(io);
-  checkTaskReminders(io);
-}, 60000);
-
-const checkTaskReminders = async (io) => {
-  try {
-    const now = new Date();
-    const in30Mins = new Date(now.getTime() + 30 * 60000);
-
-    const dueTasks = await Task.find({
-      status: "pending",
-      reminderSent: false,
-      deadline: { $lte: in30Mins, $gte: now },
-    }).populate("user");
-
-    for (const task of dueTasks) {
-      // Send reminder via Push
-      await sendToUser(task.user, {
-        title: "Task Reminder",
-        body: `Your task "${task.title}" is due soon!`,
-        data: { url: "/chat", taskId: task._id },
-      });
-
-      // Send reminder via Socket
-      if (io) {
-        io.to(`user_${task.user._id}`).emit("task-reminder", {
-          message: `Your task "${task.title}" is due in less than 30 minutes!`,
-          taskId: task._id,
-        });
-      }
-
-      task.reminderSent = true;
-      await task.save();
-    }
   } catch (error) {
     console.error("Error checking task reminders:", error);
   }

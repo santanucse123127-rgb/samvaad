@@ -54,8 +54,11 @@ export const initializeSocket = (io) => {
         lastSeen: Date.now(),
       });
 
-      // Add to active users
-      activeUsers.set(socket.userId, socket.id);
+      // Add to active users (Set of socket IDs per user)
+      if (!activeUsers.has(socket.userId)) {
+        activeUsers.set(socket.userId, new Set());
+      }
+      activeUsers.get(socket.userId).add(socket.id);
 
       // Notify all contacts that user is online
       const user = socket.user; // populated in middleware
@@ -347,27 +350,32 @@ export const initializeSocket = (io) => {
           return;
         }
 
-        console.log(`❌ User disconnected: ${socket.userId}`);
+        // Remove this socket from active users Set
+        const userSockets = activeUsers.get(socket.userId);
+        if (userSockets) {
+          userSockets.delete(socket.id);
+          if (userSockets.size === 0) {
+            activeUsers.delete(socket.userId);
 
-        // Remove from active users
-        activeUsers.delete(socket.userId);
+            // ONLY if last socket, update status to offline
+            console.log(`❌ User completely disconnected: ${socket.userId}`);
+            await User.findByIdAndUpdate(socket.userId, {
+              status: 'offline',
+              lastSeen: Date.now(),
+              socketId: '',
+            });
 
-        // Update user status to offline
-        await User.findByIdAndUpdate(socket.userId, {
-          status: 'offline',
-          lastSeen: Date.now(),
-          socketId: '',
-        });
+            // Broadcast offline status
+            const currentUser = await User.findById(socket.userId);
+            const shouldShowLS = currentUser?.settings?.lastSeenVisibility !== 'nobody';
 
-        // Broadcast offline status
-        const currentUser = await User.findById(socket.userId);
-        const shouldShowLS = currentUser?.settings?.lastSeenVisibility !== 'nobody';
-
-        socket.broadcast.emit('user-status-changed', {
-          userId: socket.userId,
-          status: 'offline',
-          lastSeen: shouldShowLS ? Date.now() : null,
-        });
+            socket.broadcast.emit('user-status-changed', {
+              userId: socket.userId,
+              status: 'offline',
+              lastSeen: shouldShowLS ? Date.now() : null,
+            });
+          }
+        }
       });
 
     } catch (error) {

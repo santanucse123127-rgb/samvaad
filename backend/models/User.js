@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema({
   },
   bio: {
     type: String,
-    default: 'Hey there! I am using NEXUS',
+    default: 'Hey there! I am using Samvaad',
     maxlength: 150,
   },
   status: {
@@ -177,7 +177,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password or PIN before saving
-userSchema.pre('save', async function () {
+userSchema.pre('save', async function (next) {
   if (this.isModified('password')) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -187,6 +187,7 @@ userSchema.pre('save', async function () {
     const salt = await bcrypt.genSalt(10);
     this.appLock.pin = await bcrypt.hash(this.appLock.pin, salt);
   }
+  next();
 });
 
 // Compare password

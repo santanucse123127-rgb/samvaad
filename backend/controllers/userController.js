@@ -91,8 +91,8 @@ export const updateTheme = async (req, res) => {
       res.json({
         success: true,
         data: {
-          theme: user.theme,
-          darkMode: user.darkMode,
+          theme: user.settings.theme,
+          darkMode: user.settings.darkMode,
         },
       });
     } else {
