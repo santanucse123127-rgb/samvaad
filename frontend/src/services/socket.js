@@ -5,6 +5,20 @@ class SocketService {
     this.socket = null;
     // Maps event → [ {original, wrapper} ] so off() can find the wrapper to remove
     this._listeners = new Map();
+    this._onConnectCallbacks = [];
+    this._onDisconnectCallbacks = [];
+  }
+
+  get isConnected() {
+    return this.socket?.connected === true;
+  }
+
+  onConnect(cb) {
+    this._onConnectCallbacks.push(cb);
+  }
+
+  onDisconnect(cb) {
+    this._onDisconnectCallbacks.push(cb);
   }
 
   connect(token) {
@@ -12,17 +26,21 @@ class SocketService {
       this.socket.disconnect();
     }
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const isDev = import.meta.env.DEV;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL ||
+      (isDev ? 'http://localhost:5000' : window.location.origin);
     this.socket = io(socketUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     this.socket.on('connect', () => {
       console.log('✅ Socket connected:', this.socket.id);
+      this._onConnectCallbacks.forEach(cb => cb());
     });
 
     this.socket.on('connect_error', (error) => {
@@ -31,6 +49,7 @@ class SocketService {
 
     this.socket.on('disconnect', (reason) => {
       console.log('⚠️ Socket disconnected:', reason);
+      this._onDisconnectCallbacks.forEach(cb => cb(reason));
     });
   }
 
@@ -40,6 +59,8 @@ class SocketService {
       this.socket = null;
     }
     this._listeners.clear();
+    this._onConnectCallbacks = [];
+    this._onDisconnectCallbacks = [];
   }
 
   emit(event, data) {

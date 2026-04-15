@@ -195,6 +195,30 @@ export const initializeSocket = (io) => {
           offer,
           callType, // 'voice' or 'video'
         });
+
+        // Auto-cancel call after 45 seconds if not answered
+        const callTimeout = setTimeout(() => {
+          // Remove the once listeners before emitting to avoid stale handlers
+          socket.off("answer-call", clearCallTimeout);
+          socket.off("reject-call", clearCallTimeout);
+          socket.off("end-call", clearCallTimeout);
+          socket.off("disconnect", clearCallTimeout);
+          socket.emit("call-timeout", { to });
+          io.to(to).emit("call-cancelled", { from: socket.userId });
+        }, 45000);
+
+        // Clear timeout if call is answered, rejected, or ended
+        const clearCallTimeout = () => {
+          clearTimeout(callTimeout);
+          socket.off("answer-call", clearCallTimeout);
+          socket.off("reject-call", clearCallTimeout);
+          socket.off("end-call", clearCallTimeout);
+          socket.off("disconnect", clearCallTimeout);
+        };
+        socket.once("answer-call", clearCallTimeout);
+        socket.once("reject-call", clearCallTimeout);
+        socket.once("end-call", clearCallTimeout);
+        socket.once("disconnect", clearCallTimeout);
       });
 
       socket.on("answer-call", ({ to, answer }) => {
