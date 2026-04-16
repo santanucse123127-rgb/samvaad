@@ -1,9 +1,8 @@
 import React from "react";
-import { Plus, Search, MoreVertical, MessageSquare, Phone, Users, Archive } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import Avatar from "../Avatar";
 import StatusPanel from "../StatusPanel";
-import ProfileSidebarPanel from "../SettingsSidebarPanel"; // Assuming this is correct based on original
 import SettingsSidebarPanel from "../SettingsSidebarPanel";
 
 const ChatSidebar = ({
@@ -25,6 +24,7 @@ const ChatSidebar = ({
   isUserOnline,
   userId,
   selectedConversation,
+  typingUsers,
   fmtTime,
   fmtDate,
   togglePin,
@@ -126,6 +126,7 @@ const ChatSidebar = ({
                 const online = isUserOnline(conv);
                 const unread = conv.unreadCount?.[userId] || 0;
                 const lastMsg = conv.lastMessage;
+                const isConvTyping = typingUsers?.[conv._id];
 
                 return (
                   <motion.div
@@ -137,35 +138,38 @@ const ChatSidebar = ({
                     <div className="relative flex-shrink-0">
                       <Avatar src={convAvatar} name={convName} size={14} />
                       {online && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[hsl(var(--sv-online))] border-2 border-[hsl(var(--sv-surface))] rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full"
+                          style={{ background: 'hsl(var(--sv-online))', borderColor: 'hsl(var(--sv-surface))' }} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-bold text-[15px] truncate text-sv-text">{convName}</span>
-                        <span className="sv-conv-time md:text-[10px] md:font-medium">
+                        <span className="font-semibold text-[14px] truncate" style={{ color: 'hsl(var(--sv-text))' }}>{convName}</span>
+                        <span className="text-[11px] tabular-nums flex-shrink-0 ml-2" style={{ color: 'hsl(var(--sv-text-3))' }}>
                           {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-sv-text-3 pr-3 truncate md:text-[12px]">
-                          {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
-                        </p>
+                        {isConvTyping ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[12px] font-medium" style={{ color: 'hsl(var(--sv-accent))' }}>typing</span>
+                            <div className="flex gap-[3px] items-center">
+                              <span className="sv-typing-dot" style={{ width: 3, height: 3 }} />
+                              <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.2s' }} />
+                              <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.4s' }} />
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[12px] pr-3 truncate" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                            {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
+                          </p>
+                        )}
                         {unread > 0 && (
                           <div className="sv-unread-badge ml-2 shrink-0">
                             {unread > 99 ? "99+" : unread}
                           </div>
                         )}
                       </div>
-                    </div>
-                    <div className="hidden group-hover:flex items-center gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); togglePin(conv._id); }}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--sv-surface-3))] text-sv-text-3 hover:text-sv-text"
-                        title="Pin"
-                      >
-                        <MoreVertical size={12} /> {/* Using MoreVertical as placeholder or Check */}
-                      </button>
                     </div>
                   </motion.div>
                 );
