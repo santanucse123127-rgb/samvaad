@@ -478,7 +478,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className={`relative px-3.5 py-2.5 ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)]' : 'sv-bubble-other rounded-2xl rounded-bl-md border border-sv/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]'} max-w-full`}
+          <div className={`relative px-3.5 py-2.5 ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)]' : 'sv-bubble-other rounded-2xl rounded-bl-md border border-sv/80 shadow-[0_10px_24px_-18px_hsl(var(--sv-text)/0.35)]'} max-w-full`}
           >
             {!isOwn && message.name && (
               <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--sv-accent))' }}>{message.name}</p>

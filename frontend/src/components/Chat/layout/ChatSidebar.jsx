@@ -137,7 +137,7 @@ const ChatSidebar = ({
                     <div className="relative flex-shrink-0">
                       <Avatar src={convAvatar} name={convName} size={14} />
                       {online && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-[hsl(var(--sv-surface))] rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[hsl(var(--sv-online))] border-2 border-[hsl(var(--sv-surface))] rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
