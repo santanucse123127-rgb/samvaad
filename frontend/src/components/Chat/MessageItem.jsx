@@ -430,11 +430,11 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                             className="absolute bottom-full mb-2 flex flex-col min-w-[150px] overflow-hidden rounded-xl shadow-2xl z-50"
                             style={{ right: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
                             <button onClick={() => { deleteMessage(message.id || message._id, 'me'); setShowDeleteOptions(false); }}
-                              className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5"
+                              className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
                               style={{ color: 'hsl(var(--sv-text))' }}>Delete for me</button>
                             {(Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
                               <button onClick={() => { deleteMessage(message.id || message._id, 'everyone'); setShowDeleteOptions(false); }}
-                                className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5 border-t"
+                                className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5 border-t"
                                 style={{ color: 'hsl(var(--sv-danger))', borderColor: 'hsl(var(--sv-border)/0.5)' }}>Delete for everyone</button>
                             )}
                           </motion.div>

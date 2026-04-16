@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Search, MoreVertical, MessageSquare, Archive } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import Avatar from "../Avatar";
 import StatusPanel from "../StatusPanel";
