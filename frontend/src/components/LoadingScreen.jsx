@@ -75,9 +75,9 @@ const LoadingScreen = () => {
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#00e676] to-[#00c853] flex items-center justify-center shadow-[0_0_40px_rgba(0,230,118,0.3)] relative z-10"
+                        className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#00e676] to-[#00c853] flex items-center justify-center shadow-[0_0_40px_rgba(0,230,118,0.3)] relative z-10 overflow-hidden"
                     >
-                        <MessageCircle size={44} color="#050e07" fill="#050e07" />
+                        <img src="/logo.png" alt="Samvaad" className="w-16 h-16 object-contain" />
                     </motion.div>
 
                     {/* Scanning Line */}

@@ -300,8 +300,8 @@ export default function Index() {
           }}
         >
           <Link to="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", flexShrink: 0 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageCircle size={16} color="#050e07" fill="#050e07" />
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              <img src="/logo.png" alt="S" style={{ width: 20, height: 20, objectFit: "contain" }} />
             </div>
             <span className="syne" style={{ fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "#fff" }}>samvaad</span>
           </Link>
@@ -592,8 +592,8 @@ export default function Index() {
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 40, marginBottom: 48 }}>
               <div>
                 <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 9, textDecoration: "none", marginBottom: 16 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 9, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <MessageCircle size={15} color="#050e07" fill="#050e07" />
+                  <div style={{ width: 30, height: 30, borderRadius: 9, background: "linear-gradient(135deg,#00e676,#00c853)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <img src="/logo.png" alt="S" style={{ width: 18, height: 18, objectFit: "contain" }} />
                   </div>
                   <span className="syne" style={{ fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "-0.03em" }}>samvaad</span>
                 </Link>

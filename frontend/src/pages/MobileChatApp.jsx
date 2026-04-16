@@ -2665,16 +2665,21 @@ export default function MobileChatApp(props) {
                   </div>
                 ) : (
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    style={{ display: "flex", alignItems: "center", gap: 14 }}
                   >
+                    <img 
+                      src="/logo.png" 
+                      alt="Samvaad" 
+                      style={{ height: 32, width: 32, objectFit: "contain" }}
+                    />
                     <div
                       onClick={() => navigateTo("settings")}
-                      style={{ cursor: "pointer" }}
+                      style={{ cursor: "pointer", position: "relative" }}
                     >
                       <Avatar
                         src={user?.avatar}
                         name={user?.name || "U"}
-                        size={46}
+                        size={40}
                       />
                     </div>
                     <div>

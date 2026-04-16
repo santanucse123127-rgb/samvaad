@@ -22,31 +22,53 @@ const MobileWelcome = () => {
 
   return (
     <div className="mobile-welcome-root">
-      {/* ── Animated Background ── */}
-      <div className="mw-bg" />
-
-      {/* ── Floating 3-D Orbs (CSS only, no images needed) ── */}
-      <div className="mw-orb mw-orb-1" />
-      <div className="mw-orb mw-orb-2" />
-      <div className="mw-orb mw-orb-3" />
-      <div className="mw-orb mw-orb-4" />
-      <div className="mw-orb mw-orb-5" />
+      {/* ── Background Image ── */}
+      <div className="mw-bg-image" />
+      <div className="mw-overlay" />
 
       {/* ── Content ── */}
       <motion.div
         className="mw-content"
-        initial={{ opacity: 0, y: 32 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="mw-text">
-          <h1 className="mw-title">Welcome Back!</h1>
-          <p className="mw-subtitle">
-            Enter personal details to access<br />your employee account
-          </p>
+        <div className="mw-logo-container">
+          <motion.img 
+            src="/logo.png" 
+            alt="Samvaad Logo" 
+            className="mw-logo"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          />
         </div>
 
-        <div className="mw-actions">
+        <div className="mw-text">
+          <motion.h1 
+            className="mw-title"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+          >
+            Samvaad
+          </motion.h1>
+          <motion.p 
+            className="mw-subtitle"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+          >
+            Connect, Converse, and Collaborate<br />in a secure, premium space.
+          </motion.p>
+        </div>
+
+        <motion.div 
+          className="mw-actions"
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.8 }}
+        >
           <button
             className="mw-btn-ghost"
             onClick={() => navigate("/login")}
@@ -59,12 +81,11 @@ const MobileWelcome = () => {
           >
             Sign up
           </button>
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* ── Inline Styles ── */}
       <style>{`
-        /* ---------- root ---------- */
         .mobile-welcome-root {
           position: relative;
           width: 100%;
@@ -73,172 +94,118 @@ const MobileWelcome = () => {
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
-          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-family: 'SF Pro Display', system-ui, sans-serif;
         }
 
-        /* ---------- background gradient ---------- */
-        .mw-bg {
+        .mw-bg-image {
           position: absolute;
           inset: 0;
-          background: linear-gradient(160deg,
-            #0a1628 0%,
-            #0d2044 30%,
-            #0f2f6e 60%,
-            #1a3a8a 100%);
+          background-image: url('/splash-bg.png');
+          background-size: cover;
+          background-position: center;
           z-index: 0;
+          transform: scale(1.1);
+          animation: slowZoom 20s infinite alternate;
         }
 
-        /* ---------- orbs ---------- */
-        .mw-orb {
+        @keyframes slowZoom {
+          from { transform: scale(1); }
+          to { transform: scale(1.1); }
+        }
+
+        .mw-overlay {
           position: absolute;
-          border-radius: 50%;
+          inset: 0;
+          background: linear-gradient(to bottom, 
+            rgba(6, 10, 13, 0.2) 0%, 
+            rgba(6, 10, 13, 0.5) 40%, 
+            rgba(6, 10, 13, 0.95) 100%);
           z-index: 1;
         }
 
-        /* large bottom-left deep orb */
-        .mw-orb-1 {
-          width: 300px; height: 300px;
-          bottom: -60px; left: -60px;
-          background: radial-gradient(circle at 35% 35%,
-            #3b68e8 0%,
-            #1a3fa6 40%,
-            #0d2566 100%);
-          box-shadow: inset -20px -20px 40px rgba(0,0,20,0.5),
-                      inset 10px 10px 30px rgba(120,160,255,0.15);
-          filter: blur(0px);
-        }
-
-        /* medium mid-right orb */
-        .mw-orb-2 {
-          width: 200px; height: 200px;
-          top: 100px; right: -40px;
-          background: radial-gradient(circle at 30% 30%,
-            #6b94f5 0%,
-            #2a52c9 45%,
-            #0e2060 100%);
-          box-shadow: inset -14px -14px 28px rgba(0,0,30,0.45),
-                      inset 8px 8px 20px rgba(160,190,255,0.12);
-        }
-
-        /* small top-left accent orb */
-        .mw-orb-3 {
-          width: 100px; height: 100px;
-          top: 60px; left: 40px;
-          background: radial-gradient(circle at 35% 30%,
-            #a0b8ff 0%,
-            #4a72e8 50%,
-            #1530a0 100%);
-          box-shadow: inset -8px -8px 16px rgba(0,0,20,0.4),
-                      inset 4px 4px 10px rgba(200,210,255,0.2);
-        }
-
-        /* tiny top-right dot */
-        .mw-orb-4 {
-          width: 60px; height: 60px;
-          top: 200px; right: 80px;
-          background: radial-gradient(circle at 35% 30%,
-            #c5d3ff 0%,
-            #7090ee 50%,
-            #2040b0 100%);
-          box-shadow: inset -5px -5px 10px rgba(0,0,20,0.35),
-                      inset 3px 3px 7px rgba(200,210,255,0.25);
-        }
-
-        /* mid orb centre */
-        .mw-orb-5 {
-          width: 140px; height: 140px;
-          top: 40%; left: 50%;
-          transform: translateX(-50%);
-          background: radial-gradient(circle at 30% 28%,
-            #8aaeff 0%,
-            #3058d8 50%,
-            #0c1e7a 100%);
-          box-shadow: inset -10px -10px 22px rgba(0,0,30,0.5),
-                      inset 6px 6px 14px rgba(160,185,255,0.15);
-          opacity: 0.7;
-        }
-
-        /* ---------- content ---------- */
         .mw-content {
           position: relative;
           z-index: 10;
-          padding: 0 28px 48px;
+          padding: 0 28px 60px;
           display: flex;
           flex-direction: column;
-          gap: 36px;
+          align-items: center;
+          gap: 40px;
+        }
+
+        .mw-logo-container {
+          margin-bottom: -10px;
+        }
+
+        .mw-logo {
+          width: 100px;
+          height: 100px;
+          object-fit: contain;
+          filter: drop-shadow(0 0 20px rgba(0, 230, 118, 0.3));
         }
 
         .mw-text {
-          text-align: left;
+          text-align: center;
         }
 
         .mw-title {
-          font-size: 32px;
-          font-weight: 800;
+          font-size: 42px;
+          font-weight: 900;
           color: #ffffff;
-          margin: 0 0 10px;
-          letter-spacing: -0.5px;
-          line-height: 1.15;
+          margin: 0 0 8px;
+          letter-spacing: -1.5px;
+          line-height: 1;
+          text-transform: lowercase;
+          font-family: 'Syne', sans-serif;
         }
 
         .mw-subtitle {
-          font-size: 14px;
-          color: rgba(180, 200, 255, 0.75);
+          font-size: 15px;
+          color: rgba(255, 255, 255, 0.6);
           margin: 0;
           line-height: 1.6;
+          font-weight: 400;
         }
 
         .mw-actions {
           display: flex;
           gap: 14px;
-          align-items: center;
+          width: 100%;
+          max-width: 320px;
         }
 
         .mw-btn-ghost {
           flex: 1;
-          padding: 15px 0;
-          border-radius: 14px;
-          background: transparent;
-          border: 1.5px solid rgba(255,255,255,0.25);
-          color: rgba(220,230,255,0.9);
+          padding: 16px 0;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #fff;
           font-size: 15px;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s ease;
-          font-family: inherit;
-        }
-        .mw-btn-ghost:hover {
-          background: rgba(255,255,255,0.08);
-          border-color: rgba(255,255,255,0.5);
-        }
-        .mw-btn-ghost:active {
-          transform: scale(0.97);
+          transition: all 0.3s ease;
         }
 
         .mw-btn-primary {
           flex: 1;
-          padding: 15px 0;
-          border-radius: 14px;
-          background: linear-gradient(135deg, #4a7cf8 0%, #2554e8 100%);
+          padding: 16px 0;
+          border-radius: 16px;
+          background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
           border: none;
-          color: #fff;
+          color: #050e07;
           font-size: 15px;
           font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 8px 24px rgba(37, 84, 232, 0.45);
-          transition: all 0.2s ease;
-          font-family: inherit;
-        }
-        .mw-btn-primary:hover {
-          background: linear-gradient(135deg, #5c8afb 0%, #3a66f5 100%);
-          box-shadow: 0 10px 28px rgba(37, 84, 232, 0.55);
-          transform: translateY(-1px);
-        }
-        .mw-btn-primary:active {
-          transform: scale(0.97) translateY(0);
+          box-shadow: 0 10px 30px rgba(0, 230, 118, 0.3);
+          transition: all 0.3s ease;
         }
 
-        /* ---------- hide on desktop ---------- */
+        .mw-btn-primary:active, .mw-btn-ghost:active {
+          transform: scale(0.96);
+        }
+
         @media (min-width: 768px) {
           .mobile-welcome-root {
             display: none;

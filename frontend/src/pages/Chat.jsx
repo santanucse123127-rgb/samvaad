@@ -254,7 +254,8 @@ const Chat = ({ token }) => {
     setShowInChatSearch, showInChatSearch, inChatSearchQuery, setInChatSearchQuery,
     setShowMoreMenu, showMoreMenu, moreMenuRef, setShowBgPicker, setShowClearConfirm,
     messagesWithDates, messageContainerRef, messagesEndRef, currentBgCls,
-    setForwardMessageData, setShowForwardModal, handleScroll: (e) => {} 
+    setForwardMessageData, setShowForwardModal, handleScroll: (e) => {}, 
+    handleNewChat: createNewConversation,
   };
 
   return (
@@ -272,7 +273,14 @@ const Chat = ({ token }) => {
       </div>
 
       {/* Modals */}
-      {showNewChatModal && <NewChatModal onClose={() => setShowNewChatModal(false)} onSelect={createNewConversation} />}
+      {showNewChatModal && (
+        <NewChatModal 
+          isOpen={showNewChatModal} 
+          onClose={() => setShowNewChatModal(false)} 
+          onCreateChat={createNewConversation}
+          token={token}
+        />
+      )}
       {showEmojiPicker && (
         <div className="fixed bottom-24 left-80 z-[100]">
           <EmojiPicker onSelect={(emoji) => { setNewMessage(p => p + emoji); setShowEmojiPicker(false); }} />

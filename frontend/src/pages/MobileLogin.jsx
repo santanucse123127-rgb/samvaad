@@ -90,9 +90,7 @@ const MobileLogin = () => {
     <div className="ml-root">
       {/* ── Background ── */}
       <div className="ml-bg" />
-      <div className="ml-orb ml-orb-1" />
-      <div className="ml-orb ml-orb-2" />
-      <div className="ml-orb ml-orb-3" />
+      <div className="ml-bg-overlay" />
 
       {/* ── Back button ── */}
       <button className="ml-back" onClick={() => navigate(-1)}>
@@ -107,7 +105,10 @@ const MobileLogin = () => {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h2 className="ml-heading">Welcome Back</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+          <img src="/logo.png" alt="Samvaad" style={{ width: 50, height: 50, marginBottom: 8 }} />
+          <h2 className="ml-heading">Welcome Back</h2>
+        </div>
 
         {/* Error */}
         {error && (
@@ -221,39 +222,23 @@ const MobileLogin = () => {
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
-          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-family: 'SF Pro Display', system-ui, sans-serif;
         }
 
-        /* bg */
         .ml-bg {
           position: absolute; inset: 0;
-          background: linear-gradient(160deg,
-            #0a1628 0%, #0d2044 30%, #0f2f6e 60%, #1a3a8a 100%);
+          background-image: url('/splash-bg.png');
+          background-size: cover;
+          background-position: center;
           z-index: 0;
         }
 
-        /* orbs */
-        .ml-orb { position: absolute; border-radius: 50%; z-index: 1; }
-        .ml-orb-1 {
-          width: 280px; height: 280px;
-          bottom: 260px; left: -80px;
-          background: radial-gradient(circle at 35% 35%, #3b68e8 0%, #1a3fa6 40%, #0d2566 100%);
-          box-shadow: inset -18px -18px 36px rgba(0,0,20,.5), inset 10px 10px 28px rgba(120,160,255,.15);
-        }
-        .ml-orb-2 {
-          width: 160px; height: 160px;
-          top: 60px; right: -30px;
-          background: radial-gradient(circle at 30% 30%, #6b94f5 0%, #2a52c9 45%, #0e2060 100%);
-          box-shadow: inset -12px -12px 24px rgba(0,0,30,.45), inset 7px 7px 18px rgba(160,190,255,.12);
-        }
-        .ml-orb-3 {
-          width: 90px; height: 90px;
-          top: 80px; left: 50px;
-          background: radial-gradient(circle at 35% 30%, #a0b8ff 0%, #4a72e8 50%, #1530a0 100%);
-          box-shadow: inset -7px -7px 14px rgba(0,0,20,.4), inset 4px 4px 9px rgba(200,210,255,.2);
+        .ml-bg-overlay {
+          position: absolute; inset: 0;
+          background: rgba(6, 10, 13, 0.4);
+          z-index: 0;
         }
 
-        /* back button */
         .ml-back {
           position: absolute;
           top: 20px; left: 16px;
@@ -271,7 +256,6 @@ const MobileLogin = () => {
           backdrop-filter: blur(6px);
         }
 
-        /* white card */
         .ml-card {
           position: relative;
           z-index: 10;
@@ -284,8 +268,8 @@ const MobileLogin = () => {
         .ml-heading {
           font-size: 26px;
           font-weight: 800;
-          color: #2554e8;
-          margin: 0 0 22px;
+          color: #050e07;
+          margin: 0;
           letter-spacing: -0.4px;
         }
 

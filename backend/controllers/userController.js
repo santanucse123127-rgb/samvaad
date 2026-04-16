@@ -180,14 +180,14 @@ export const searchUsers = async (req, res) => {
     };
 
     // If sync is enabled, we strictly filter to only those in the synced contacts
-    if (syncEnabled && (contactEmails.length > 0 || contactPhones.length > 0)) {
-      query.$and.push({
-        $or: [
-          { email: { $in: contactEmails } },
-          { phone: { $in: contactPhones } }
-        ]
-      });
-    }
+    // if (syncEnabled && (contactEmails.length > 0 || contactPhones.length > 0)) {
+    //   query.$and.push({
+    //     $or: [
+    //       { email: { $in: contactEmails } },
+    //       { phone: { $in: contactPhones } }
+    //     ]
+    //   });
+    // }
 
     const users = await User.find(query)
       .select('name email phone avatar bio status lastSeen')
@@ -218,12 +218,12 @@ export const getUsers = async (req, res) => {
 
     const query = { _id: { $ne: req.user._id } };
 
-    if (syncEnabled && (contactEmails.length > 0 || contactPhones.length > 0)) {
-      query.$or = [
-        { email: { $in: contactEmails } },
-        { phone: { $in: contactPhones } }
-      ];
-    }
+    // if (syncEnabled && (contactEmails.length > 0 || contactPhones.length > 0)) {
+    //   query.$or = [
+    //     { email: { $in: contactEmails } },
+    //     { phone: { $in: contactPhones } }
+    //   ];
+    // }
 
     const users = await User.find(query).select('name email avatar status');
 

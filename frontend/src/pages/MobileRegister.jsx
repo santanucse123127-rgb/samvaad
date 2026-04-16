@@ -88,10 +88,7 @@ const MobileRegister = () => {
     <div className="mr-root">
       {/* ── Background ── */}
       <div className="mr-bg" />
-      <div className="mr-orb mr-orb-1" />
-      <div className="mr-orb mr-orb-2" />
-      <div className="mr-orb mr-orb-3" />
-      <div className="mr-orb mr-orb-4" />
+      <div className="mr-bg-overlay" />
 
       {/* ── Back button ── */}
       <button className="mr-back" onClick={() => navigate(-1)}>
@@ -106,7 +103,10 @@ const MobileRegister = () => {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h2 className="mr-heading">Get Started</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+          <img src="/logo.png" alt="Samvaad" style={{ width: 50, height: 50, marginBottom: 8 }} />
+          <h2 className="mr-heading">Get Started</h2>
+        </div>
 
         {/* Error */}
         {error && (
@@ -230,44 +230,23 @@ const MobileRegister = () => {
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
-          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-family: 'SF Pro Display', system-ui, sans-serif;
         }
 
-        /* bg */
         .mr-bg {
           position: absolute; inset: 0;
-          background: linear-gradient(160deg, #0a1628 0%, #0d2044 30%, #0f2f6e 60%, #1a3a8a 100%);
+          background-image: url('/splash-bg.png');
+          background-size: cover;
+          background-position: center;
           z-index: 0;
         }
 
-        /* orbs */
-        .mr-orb { position: absolute; border-radius: 50%; z-index: 1; }
-        .mr-orb-1 {
-          width: 240px; height: 240px;
-          top: 20px; left: -60px;
-          background: radial-gradient(circle at 35% 35%, #3b68e8 0%, #1a3fa6 40%, #0d2566 100%);
-          box-shadow: inset -16px -16px 32px rgba(0,0,20,.5), inset 9px 9px 26px rgba(120,160,255,.15);
-        }
-        .mr-orb-2 {
-          width: 160px; height: 160px;
-          top: 60px; right: -40px;
-          background: radial-gradient(circle at 30% 30%, #8aaeff 0%, #3058d8 50%, #0c1e7a 100%);
-          box-shadow: inset -11px -11px 22px rgba(0,0,30,.45), inset 6px 6px 16px rgba(160,190,255,.12);
-          opacity: 0.8;
-        }
-        .mr-orb-3 {
-          width: 80px; height: 80px;
-          top: 180px; left: 60px;
-          background: radial-gradient(circle at 35% 30%, #a0b8ff 0%, #4a72e8 50%, #1530a0 100%);
-          box-shadow: inset -6px -6px 12px rgba(0,0,20,.4), inset 4px 4px 8px rgba(200,210,255,.2);
-        }
-        .mr-orb-4 {
-          width: 50px; height: 50px;
-          top: 130px; right: 80px;
-          background: radial-gradient(circle at 30% 28%, #c5d3ff 0%, #7090ee 50%, #2040b0 100%);
+        .mr-bg-overlay {
+          position: absolute; inset: 0;
+          background: rgba(6, 10, 13, 0.4);
+          z-index: 0;
         }
 
-        /* back */
         .mr-back {
           position: absolute; top: 20px; left: 16px; z-index: 20;
           display: flex; align-items: center; gap: 4px;
@@ -277,7 +256,6 @@ const MobileRegister = () => {
           cursor: pointer; font-family: inherit; backdrop-filter: blur(6px);
         }
 
-        /* card */
         .mr-card {
           position: relative; z-index: 10;
           background: #ffffff;
@@ -287,8 +265,8 @@ const MobileRegister = () => {
         }
 
         .mr-heading {
-          font-size: 26px; font-weight: 800; color: #2554e8;
-          margin: 0 0 20px; letter-spacing: -0.4px;
+          font-size: 26px; font-weight: 800; color: #050e07;
+          margin: 0; letter-spacing: -0.4px;
         }
 
         /* error */

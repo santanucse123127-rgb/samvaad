@@ -40,6 +40,7 @@ import { useIsMobile } from "@/hooks/useMediaQuery";
 // ── Existing desktop views (unchanged) ──────────────────────────
 import Login    from "@/pages/Login";
 import Register from "@/pages/Register";
+import AuthDesktop from "@/pages/AuthDesktop";
 
 // ── New mobile views ─────────────────────────────────────────────
 import MobileWelcome  from "@/pages/MobileWelcome";
@@ -55,7 +56,7 @@ export const ResponsiveWelcome = () => {
   const isMobile = useIsMobile();
   // On desktop there is no dedicated welcome screen in the original app,
   // so we simply render the Login page.
-  return isMobile ? <MobileWelcome /> : <Login />;
+  return isMobile ? <MobileWelcome /> : <AuthDesktop initialMode="login" />;
 };
 
 /**
@@ -65,7 +66,7 @@ export const ResponsiveWelcome = () => {
  */
 export const ResponsiveLogin = () => {
   const isMobile = useIsMobile();
-  return isMobile ? <MobileLogin /> : <Login />;
+  return isMobile ? <MobileLogin /> : <AuthDesktop initialMode="login" />;
 };
 
 /**
@@ -75,5 +76,5 @@ export const ResponsiveLogin = () => {
  */
 export const ResponsiveRegister = () => {
   const isMobile = useIsMobile();
-  return isMobile ? <MobileRegister /> : <Register />;
+  return isMobile ? <MobileRegister /> : <AuthDesktop initialMode="register" />;
 };

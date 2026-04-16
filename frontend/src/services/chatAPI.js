@@ -600,8 +600,8 @@ export const getUsers = async (token) => {
     },
   });
   const json = await response.json();
-  // Normalize: return array of users when possible
-  return json.data || json.users || json;
+  // Return the whole object to be consistent with other API calls
+  return json;
 };
 
 export const apiUpdateProfile = async (data) => {
