@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Plus, ImageIcon, Users, MessageSquare, Phone, CircleDot, Megaphone, Settings, Bell, ChevronDown, File
+  X, Plus, ImageIcon, Users, MessageSquare, Phone, CircleDot, Megaphone, Settings, Bell, ChevronDown, File, Search
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
