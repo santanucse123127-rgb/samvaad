@@ -5,26 +5,27 @@ import ChatInput from "./ChatInput";
 import CallInterface from "../CallInterface";
 
 const ChatWindow = (props) => {
-  const { 
-    selectedConversation, 
-    mobileShowSidebar, 
-    ...rest 
+  const {
+    selectedConversation,
+    mobileShowSidebar,
+    ...rest
   } = props;
 
   if (!selectedConversation) return null;
 
   return (
-    <main className={`flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300
-      ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 bg-[hsl(var(--sv-bg))] flex pb-[env(safe-area-inset-bottom,0px)]'}`}
+    <main
+      className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300
+        ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 flex pb-[env(safe-area-inset-bottom,0px)]'}`}
+      style={{ background: 'hsl(var(--sv-bg))' }}
     >
       <CallInterface />
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 relative">
-          <ChatHeader {...props} />
-          <MessageList {...props} />
-          <ChatInput {...props} />
-        </div>
-        {/* Profile Sidebar logic could also be extracted but keeping it for now if needed */}
+      {/* Sticky header sits outside any scroll container */}
+      <ChatHeader selectedConversation={selectedConversation} {...rest} />
+      {/* Scrollable message area fills available space */}
+      <div className="flex flex-1 min-h-0 overflow-hidden flex-col">
+        <MessageList selectedConversation={selectedConversation} {...rest} />
+        <ChatInput selectedConversation={selectedConversation} {...rest} />
       </div>
     </main>
   );

@@ -4,6 +4,7 @@ import { Reply, Trash2, Smile, Check, CheckCheck, Clock, Download, BarChart2, Mi
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChat } from "../../context/ChatContext";
+import Avatar from "./Avatar";
 
 /* ── Tick indicator ── */
 const Ticks = ({ status }) => {
@@ -355,18 +356,189 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
     return renderActualContent();
   };
 
+  const senderName = message.sender?.name || message.name || "";
+  const senderAvatar = message.sender?.avatar || null;
+
+  /* ── Own message (right-aligned, no avatar) ── */
+  if (isOwn) {
+    return (
+      <motion.div
+        layout
+        id={`msg-${message.id || message._id}`}
+        className="flex w-full mb-2 px-2 justify-end"
+        initial={{ opacity: 0, y: 8, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      >
+        <div className="flex flex-col items-end max-w-[72%] relative">
+          <div
+            className="relative flex items-end gap-2 flex-row-reverse"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <AnimatePresence>
+              {showActions && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute top-0 right-full mr-2 flex items-center gap-1 z-40"
+                >
+                  <div className="flex items-center gap-1 rounded-full px-2 py-1.5 shadow-xl"
+                    style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                    <button onClick={() => setShowReactions(p => !p)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                      style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      <Smile size={15} />
+                    </button>
+                    <button onClick={() => { onForward && onForward(message); setShowActions(false); }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                      style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      <Forward size={14} />
+                    </button>
+                    {message.type === 'text' && (Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
+                      <button onClick={() => { setIsEditing(true); setEditContent(message.content); setShowActions(false); }}
+                        className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                        style={{ color: 'hsl(var(--sv-text-2))' }}>
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                    <button onClick={() => onReply && onReply(message)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                      style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      <Reply size={15} />
+                    </button>
+                    <button onClick={() => { window.dispatchEvent(new CustomEvent('open-task-modal', { detail: { message } })); setShowActions(false); }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                      title="Convert to Task"
+                      style={{ color: 'hsl(var(--sv-text-2))' }}>
+                      <ListTodo size={14} />
+                    </button>
+                    <div className="relative">
+                      <button onClick={() => setShowDeleteOptions(p => !p)}
+                        className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                        style={{ color: 'hsl(var(--sv-danger)/0.7)' }}>
+                        <Trash2 size={15} />
+                      </button>
+                      <AnimatePresence>
+                        {showDeleteOptions && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                            className="absolute bottom-full mb-2 flex flex-col min-w-[150px] overflow-hidden rounded-xl shadow-2xl z-50"
+                            style={{ right: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                            <button onClick={() => { deleteMessage(message.id || message._id, 'me'); setShowDeleteOptions(false); }}
+                              className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5"
+                              style={{ color: 'hsl(var(--sv-text))' }}>Delete for me</button>
+                            {(Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
+                              <button onClick={() => { deleteMessage(message.id || message._id, 'everyone'); setShowDeleteOptions(false); }}
+                                className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5 border-t"
+                                style={{ color: 'hsl(var(--sv-danger))', borderColor: 'hsl(var(--sv-border)/0.5)' }}>Delete for everyone</button>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                  <AnimatePresence>
+                    {showReactions && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        className="absolute bottom-full mb-2 flex items-center gap-1.5 px-3 py-2 rounded-2xl z-50 shadow-2xl"
+                        style={{ right: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                        {EMOJIS.map(emoji => (
+                          <motion.button key={emoji} whileHover={{ scale: 1.4 }} whileTap={{ scale: 0.8 }}
+                            className="text-xl cursor-pointer"
+                            onClick={(e) => {
+                              addReaction(message._id || message.id, emoji);
+                              setShowReactions(false);
+                              window.dispatchEvent(new CustomEvent('magic-burst', { detail: { x: e.clientX, y: e.clientY, type: emoji === '❤️' ? 'heart' : 'standard' } }));
+                            }}>
+                            {emoji}
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="relative px-3.5 py-2.5 sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)] max-w-full">
+              {message.replyTo && (
+                <div
+                  onClick={() => {
+                    const el = document.getElementById(`msg-${message.replyTo._id || message.replyTo.id}`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el?.classList.add('sv-highlight-message');
+                    setTimeout(() => el?.classList.remove('sv-highlight-message'), 2000);
+                  }}
+                  className="mb-2 px-3 py-2 rounded-xl border-l-2 text-xs cursor-pointer transition-opacity hover:opacity-80"
+                  style={{ borderColor: 'rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.15)', color: 'rgba(255,255,255,0.75)' }}>
+                  <p className="font-semibold text-[11px] mb-0.5" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                    {message.replyTo.sender?.name || 'User'}
+                  </p>
+                  <p className="truncate">
+                    {message.replyTo.type === 'image' ? '📷 Photo' : message.replyTo.type === 'video' ? '🎥 Video' : message.replyTo.type === 'voice' ? '🎤 Voice' : message.replyTo.type === 'file' ? '📁 File' : message.replyTo.type === 'poll' ? '📊 Poll' : message.replyTo.type === 'code' ? '💻 Code' : message.replyTo.content}
+                  </p>
+                </div>
+              )}
+              {renderContent()}
+              <div className="flex items-center justify-end gap-1 mt-1.5 select-none" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {message.edited && <span className="text-[10px]">edited</span>}
+                <span className="text-[10px] tabular-nums">{time}</span>
+                <Ticks status={message.status} />
+              </div>
+            </div>
+          </div>
+          {message.reactions?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1 justify-end">
+              {message.reactions.map((r, i) => (
+                <motion.div key={i} whileHover={{ y: -2 }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm cursor-default"
+                  style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                  <span>{r.emoji}</span>
+                  {r.count > 1 && <span className="text-[10px] font-bold" style={{ color: 'hsl(var(--sv-text-2))' }}>{r.count}</span>}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  /* ── Other user's message (left-aligned, with avatar + name header) ── */
   return (
     <motion.div
       layout
       id={`msg-${message.id || message._id}`}
-      className={`flex w-full mb-1 px-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
+      className="flex w-full mb-3 px-2 justify-start gap-3"
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
-      <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[72%] relative`}>
+      {/* Sender Avatar */}
+      <div className="flex-shrink-0 self-end">
+        <Avatar src={senderAvatar} name={senderName} size={9} />
+      </div>
+
+      {/* Content: name+time header + bubble */}
+      <div className="flex flex-col items-start max-w-[72%]">
+        {/* Sender name + timestamp */}
+        {senderName && (
+          <div className="flex items-center gap-2 mb-1.5 px-1">
+            <span className="text-xs font-semibold" style={{ color: 'hsl(var(--sv-text))' }}>{senderName}</span>
+            <span className="text-[10px] tabular-nums" style={{ color: 'hsl(var(--sv-text-3))' }}>{time}</span>
+          </div>
+        )}
+
         <div
-          className={`relative flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+          className="relative flex items-end gap-2"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -377,7 +549,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
                 transition={{ duration: 0.12 }}
-                className={`absolute top-0 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'} flex items-center gap-1 z-40`}
+                className="absolute top-0 left-full ml-2 flex items-center gap-1 z-40"
               >
                 <div className="flex items-center gap-1 rounded-full px-2 py-1.5 shadow-xl"
                   style={{ background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
@@ -391,30 +563,19 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                     style={{ color: 'hsl(var(--sv-text-2))' }}>
                     <Forward size={14} />
                   </button>
-                  {isOwn && message.type === 'text' && (Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
-                    <button onClick={() => { setIsEditing(true); setEditContent(message.content); setShowActions(false); }}
-                      className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-                      style={{ color: 'hsl(var(--sv-text-2))' }}>
-                      <Pencil size={14} />
-                    </button>
-                  )}
                   <button onClick={() => onReply && onReply(message)}
                     className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                     style={{ color: 'hsl(var(--sv-text-2))' }}>
                     <Reply size={15} />
                   </button>
-                  <button onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open-task-modal', { detail: { message } }));
-                    setShowActions(false);
-                  }}
+                  <button onClick={() => { window.dispatchEvent(new CustomEvent('open-task-modal', { detail: { message } })); setShowActions(false); }}
                     className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                     title="Convert to Task"
                     style={{ color: 'hsl(var(--sv-text-2))' }}>
                     <ListTodo size={14} />
                   </button>
                   <div className="relative">
-                    <button
-                      onClick={() => setShowDeleteOptions(p => !p)}
+                    <button onClick={() => setShowDeleteOptions(p => !p)}
                       className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                       style={{ color: 'hsl(var(--sv-danger)/0.7)' }}>
                       <Trash2 size={15} />
@@ -426,21 +587,10 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9, y: 4 }}
                           className="absolute bottom-full mb-2 flex flex-col min-w-[150px] overflow-hidden rounded-xl shadow-2xl z-50"
-                          style={{ [isOwn ? 'right' : 'left']: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
-                          <button
-                            onClick={() => { deleteMessage(message.id || message._id, 'me'); setShowDeleteOptions(false); }}
-                            className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5"
-                            style={{ color: 'hsl(var(--sv-text))' }}>
-                            Delete for me
-                          </button>
-                          {isOwn && (Date.now() - new Date(message.createdAt || message.timestamp).getTime() < 3600000) && (
-                            <button
-                              onClick={() => { deleteMessage(message.id || message._id, 'everyone'); setShowDeleteOptions(false); }}
-                              className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-black/5 border-t"
-                              style={{ color: 'hsl(var(--sv-danger))', borderColor: 'hsl(var(--sv-border)/0.5)' }}>
-                              Delete for everyone
-                            </button>
-                          )}
+                          style={{ left: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                          <button onClick={() => { deleteMessage(message.id || message._id, 'me'); setShowDeleteOptions(false); }}
+                            className="px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                            style={{ color: 'hsl(var(--sv-text))' }}>Delete for me</button>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -453,20 +603,14 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 4 }}
                       className="absolute bottom-full mb-2 flex items-center gap-1.5 px-3 py-2 rounded-2xl z-50 shadow-2xl"
-                      style={{ [isOwn ? 'right' : 'left']: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
+                      style={{ left: 0, background: 'hsl(var(--sv-surface-3))', border: '1px solid hsl(var(--sv-border))' }}>
                       {EMOJIS.map(emoji => (
                         <motion.button key={emoji} whileHover={{ scale: 1.4 }} whileTap={{ scale: 0.8 }}
                           className="text-xl cursor-pointer"
                           onClick={(e) => {
                             addReaction(message._id || message.id, emoji);
                             setShowReactions(false);
-                            window.dispatchEvent(new CustomEvent('magic-burst', {
-                              detail: {
-                                x: e.clientX,
-                                y: e.clientY,
-                                type: emoji === '❤️' ? 'heart' : 'standard'
-                              }
-                            }));
+                            window.dispatchEvent(new CustomEvent('magic-burst', { detail: { x: e.clientX, y: e.clientY, type: emoji === '❤️' ? 'heart' : 'standard' } }));
                           }}>
                           {emoji}
                         </motion.button>
@@ -478,11 +622,8 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className={`relative px-3.5 py-2.5 ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)]' : 'sv-bubble-other rounded-2xl rounded-bl-md border border-sv/80 shadow-[0_10px_24px_-18px_hsl(var(--sv-text)/0.35)]'} max-w-full`}
-          >
-            {!isOwn && message.name && (
-              <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--sv-accent))' }}>{message.name}</p>
-            )}
+          <div className="relative px-3.5 py-2.5 sv-bubble-other rounded-2xl rounded-bl-md max-w-full"
+            style={{ color: 'hsl(var(--sv-text))' }}>
             {message.replyTo && (
               <div
                 onClick={() => {
@@ -492,32 +633,27 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                   setTimeout(() => el?.classList.remove('sv-highlight-message'), 2000);
                 }}
                 className="mb-2 px-3 py-2 rounded-xl border-l-2 text-xs cursor-pointer transition-opacity hover:opacity-80"
-                style={{ borderColor: 'hsl(var(--sv-accent))', background: isOwn ? 'rgba(0,0,0,0.15)' : 'hsl(var(--sv-surface-3))', color: isOwn ? 'rgba(255,255,255,0.75)' : 'hsl(var(--sv-text-2))' }}>
+                style={{ borderColor: 'hsl(var(--sv-accent))', background: 'hsl(var(--sv-surface-3))', color: 'hsl(var(--sv-text-2))' }}>
                 <p className="font-semibold text-[11px] mb-0.5" style={{ color: 'hsl(var(--sv-accent))' }}>
                   {message.replyTo.sender?.name || 'User'}
                 </p>
                 <p className="truncate">
-                  {message.replyTo.type === 'image' ? '📷 Photo' :
-                    message.replyTo.type === 'video' ? '🎥 Video' :
-                      message.replyTo.type === 'voice' ? '🎤 Voice' :
-                        message.replyTo.type === 'file' ? '📁 File' :
-                          message.replyTo.type === 'poll' ? '📊 Poll' :
-                            message.replyTo.type === 'code' ? '💻 Code' :
-                              message.replyTo.content}
+                  {message.replyTo.type === 'image' ? '📷 Photo' : message.replyTo.type === 'video' ? '🎥 Video' : message.replyTo.type === 'voice' ? '🎤 Voice' : message.replyTo.type === 'file' ? '📁 File' : message.replyTo.type === 'poll' ? '📊 Poll' : message.replyTo.type === 'code' ? '💻 Code' : message.replyTo.content}
                 </p>
               </div>
             )}
             {renderContent()}
-            <div className={`flex items-center justify-end gap-1 mt-2 select-none`}
-              style={{ color: isOwn ? 'rgba(255,255,255,0.55)' : 'hsl(var(--sv-text-3))' }}>
-              {message.edited && <span className="text-[10px]">edited</span>}
-              <span className="text-[10px] tabular-nums">{time}</span>
-              {isOwn && <Ticks status={message.status} />}
-            </div>
+            {!senderName && (
+              <div className="flex items-center justify-end gap-1 mt-1.5 select-none" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                {message.edited && <span className="text-[10px]">edited</span>}
+                <span className="text-[10px] tabular-nums">{time}</span>
+              </div>
+            )}
           </div>
         </div>
+
         {message.reactions?.length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+          <div className="flex flex-wrap gap-1 mt-1 justify-start">
             {message.reactions.map((r, i) => (
               <motion.div key={i} whileHover={{ y: -2 }}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm cursor-default"

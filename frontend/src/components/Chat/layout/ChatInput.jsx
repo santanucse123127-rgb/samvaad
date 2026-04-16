@@ -21,7 +21,10 @@ const ChatInput = ({
   fmtDuration
 }) => {
   return (
-    <div className="md:px-6 md:pb-6 md:pt-2 md:bg-gradient-to-t md:from-[hsl(var(--sv-bg))] md:via-[hsl(var(--sv-bg))/0.4] md:to-transparent sticky bottom-0 z-20 sv-input-bar-light">
+    <div
+      className="px-4 md:px-6 pb-4 md:pb-6 pt-2 flex-shrink-0"
+      style={{ background: 'hsl(var(--sv-bg))', borderTop: '1px solid hsl(var(--sv-border) / 0.4)' }}
+    >
       <div className="max-w-3xl mx-auto flex flex-col gap-2">
         {/* Previews (Reply/Upload) */}
         <AnimatePresence>
@@ -59,7 +62,8 @@ const ChatInput = ({
         </AnimatePresence>
 
         {/* Input Container */}
-        <div className="sv-input-container-v2 md:shadow-2xl relative md:bg-[hsl(var(--sv-surface-2))] sv-input-inner-light">
+        <div className="sv-input-container-v2 relative"
+          style={{ background: 'hsl(var(--sv-surface-2))' }}>
           <button onClick={() => setShowEmojiPicker(p => !p)}
             className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-[hsl(var(--sv-surface-3))] text-sv-text-3 hover:text-sv-accent">
             <Smile size={22} />
