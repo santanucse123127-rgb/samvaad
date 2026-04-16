@@ -44,8 +44,7 @@ import AuthDesktop from "@/pages/AuthDesktop";
 
 // ── New mobile views ─────────────────────────────────────────────
 import MobileWelcome  from "@/pages/MobileWelcome";
-import MobileLogin    from "@/pages/MobileLogin";
-import MobileRegister from "@/pages/MobileRegister";
+import MobileAuthFlow from "@/pages/MobileAuthFlow";
 
 /**
  * ResponsiveWelcome
@@ -61,20 +60,20 @@ export const ResponsiveWelcome = () => {
 
 /**
  * ResponsiveLogin
- * Mobile  → MobileLogin  (white card over blue orb bg)
+ * Mobile  → MobileAuthFlow  (white card over image bg)
  * Desktop → existing Login (unchanged)
  */
 export const ResponsiveLogin = () => {
   const isMobile = useIsMobile();
-  return isMobile ? <MobileLogin /> : <AuthDesktop initialMode="login" />;
+  return isMobile ? <MobileAuthFlow initialMode="login" /> : <AuthDesktop initialMode="login" />;
 };
 
 /**
  * ResponsiveRegister
- * Mobile  → MobileRegister  (white card over blue orb bg)
+ * Mobile  → MobileAuthFlow  (white card over image bg)
  * Desktop → existing Register (unchanged)
  */
 export const ResponsiveRegister = () => {
   const isMobile = useIsMobile();
-  return isMobile ? <MobileRegister /> : <AuthDesktop initialMode="register" />;
+  return isMobile ? <MobileAuthFlow initialMode="register" /> : <AuthDesktop initialMode="register" />;
 };
