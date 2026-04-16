@@ -478,7 +478,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className={`relative px-3.5 py-2.5 shadow-md ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-sm text-white' : 'sv-bubble-other rounded-2xl rounded-bl-sm'} max-w-full`}
+          <div className={`relative px-3.5 py-2.5 ${isOwn ? 'sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)]' : 'sv-bubble-other rounded-2xl rounded-bl-md border border-sv/80 shadow-[0_10px_24px_-18px_hsl(var(--sv-text)/0.35)]'} max-w-full`}
           >
             {!isOwn && message.name && (
               <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(var(--sv-accent))' }}>{message.name}</p>
@@ -508,7 +508,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
               </div>
             )}
             {renderContent()}
-            <div className={`flex items-center justify-end gap-1 mt-1.5 select-none`}
+            <div className={`flex items-center justify-end gap-1 mt-2 select-none`}
               style={{ color: isOwn ? 'rgba(255,255,255,0.55)' : 'hsl(var(--sv-text-3))' }}>
               {message.edited && <span className="text-[10px]">edited</span>}
               <span className="text-[10px] tabular-nums">{time}</span>

@@ -53,7 +53,7 @@ const ChatHeader = ({
           <div className="flex items-center gap-1">
             <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setActiveCall({ type: "voice", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}><Phone size={18} /></button>
             <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setActiveCall({ type: "video", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}><Video size={18} /></button>
-            <div className="w-[1px] h-6 bg-white/5 mx-1" />
+             <div className="w-[1px] h-6 bg-[hsl(var(--sv-border))] mx-1" />
             <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowInChatSearch(p => !p)}><Search size={18} /></button>
             <div className="relative" ref={moreMenuRef}>
               <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowMoreMenu(p => !p)}><MoreVertical size={18} /></button>
@@ -62,7 +62,7 @@ const ChatHeader = ({
                   <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="sv-dropdown right-0 mt-2">
                     <button onClick={() => setShowProfile(true)} className="sv-dropdown-item"><Users size={16} /> View Profile</button>
                     <button onClick={() => setShowBgPicker(true)} className="sv-dropdown-item"><ImageIcon size={16} /> Change Wallpaper</button>
-                    <div className="h-px bg-white/5 my-1" />
+                     <div className="h-px bg-[hsl(var(--sv-border))] my-1" />
                     <button onClick={() => setShowClearConfirm(true)} className="sv-dropdown-item danger"><Trash2 size={16} /> Clear Chat</button>
                   </motion.div>
                 )}
