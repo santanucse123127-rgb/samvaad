@@ -263,13 +263,14 @@ const Chat = ({ token }) => {
       <div className="md:hidden h-full">
         <MobileChatApp {...commonProps} />
       </div>
-      <div className="hidden md:flex h-screen overflow-hidden" style={{ background: 'hsl(var(--sv-bg))' }}>
+      <div className="hidden md:flex h-screen overflow-hidden sv-animated-bg p-4 lg:p-6">
         <VibeBackgrounds />
         <MagicEffectManager />
-        
-        <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
-        <ChatSidebar {...commonProps} />
-        <ChatWindow {...commonProps} />
+        <div className="flex flex-1 min-h-0 rounded-[28px] border border-sv/70 bg-[hsl(var(--sv-surface))/0.92] backdrop-blur-xl shadow-[0_32px_80px_-18px_rgba(15,23,42,0.35)] overflow-hidden">
+          <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
+          <ChatSidebar {...commonProps} />
+          <ChatWindow {...commonProps} />
+        </div>
       </div>
 
       {/* Modals */}

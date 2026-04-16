@@ -32,7 +32,7 @@ const MessageList = ({
           messagesWithDates.map((item) => {
             if (item.type === "date") return (
               <div key={item.id} className="flex items-center justify-center my-4">
-                <span className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full font-black bg-black/5 text-[#5a5a9f] border border-[#5a5a9f]/10">
+                <span className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full font-black bg-[hsl(var(--sv-accent))/0.08] text-[hsl(var(--sv-accent))] border border-[hsl(var(--sv-accent))/0.2] shadow-sm">
                   {item.label}
                 </span>
               </div>
