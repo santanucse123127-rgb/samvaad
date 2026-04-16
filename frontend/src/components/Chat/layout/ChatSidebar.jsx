@@ -40,10 +40,10 @@ const ChatSidebar = ({
       ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Sidebar Header */}
-      <div className="flex items-center justify-between px-6 py-6 flex-shrink-0 md:bg-transparent bg-white">
+      <div className="flex items-center justify-between px-6 py-6 flex-shrink-0">
         <div className="md:hidden">
-          <p className="text-sm text-gray-400 font-medium">Hello,</p>
-          <h2 className="text-2xl font-black text-gray-900 leading-tight">
+          <p className="text-sm font-medium text-sv-text-3">Hello,</p>
+          <h2 className="text-2xl font-black text-sv-text leading-tight">
             {user?.name?.split(' ')[0] || "Johan"}
           </h2>
         </div>
@@ -51,27 +51,27 @@ const ChatSidebar = ({
           {activeRailTab === 'chats' && showArchivedOnly ? "Archived" : activeRailTab === 'chats' ? "Messages" : activeRailTab.charAt(0).toUpperCase() + activeRailTab.slice(1)}
         </h2>
         <div className="flex items-center gap-2">
-          <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:text-black transition-colors">
-            <Search size={20} />
-          </button>
-          <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:text-black transition-colors">
-            <MoreVertical size={20} />
-          </button>
+            <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-sv-text transition-colors">
+              <Search size={20} />
+            </button>
+            <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-sv-text transition-colors">
+              <MoreVertical size={20} />
+            </button>
           <div className="hidden md:flex items-center gap-1">
             {activeRailTab === 'chats' && (
               <button
                 onClick={() => setShowArchivedOnly(p => !p)}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showArchivedOnly ? 'bg-sv-accent text-white' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}
-                title={showArchivedOnly ? "Show All" : "Show Archived"}
-              >
-                <Archive size={16} />
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showArchivedOnly ? 'bg-sv-accent text-white shadow-[0_8px_24px_-8px_hsl(var(--sv-accent)/0.6)]' : 'bg-[hsl(var(--sv-surface-2))] hover:bg-[hsl(var(--sv-surface-3))] text-sv-text-2 hover:text-sv-text'}`}
+                  title={showArchivedOnly ? "Show All" : "Show Archived"}
+                >
+                  <Archive size={16} />
               </button>
             )}
             {!['profile', 'settings'].includes(activeRailTab) && (
               <button
                 id="new-chat-btn-v2"
                 onClick={() => setShowNewChatModal(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-white/5 hover:bg-white/10 text-white"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-[hsl(var(--sv-surface-2))] hover:bg-[hsl(var(--sv-surface-3))] text-sv-accent"
               >
                 <Plus size={18} />
               </button>
@@ -92,7 +92,7 @@ const ChatSidebar = ({
             <input
               type="text"
               placeholder={`Search ${activeRailTab}...`}
-              className="sv-input rounded-2xl pl-10 py-2.5 text-xs bg-white/5 border-transparent focus:bg-white/10"
+              className="sv-input rounded-2xl pl-10 py-2.5 text-xs"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -137,18 +137,18 @@ const ChatSidebar = ({
                     <div className="relative flex-shrink-0">
                       <Avatar src={convAvatar} name={convName} size={14} />
                       {online && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-[hsl(var(--sv-surface))] rounded-full" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-bold text-[15px] truncate text-[#333] md:text-white" style={{ color: window.innerWidth <= 768 ? '#333' : 'hsl(var(--sv-text))' }}>{convName}</span>
+                        <span className="font-bold text-[15px] truncate text-sv-text">{convName}</span>
                         <span className="sv-conv-time md:text-[10px] md:font-medium">
                           {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-[#888] pr-3 truncate md:text-[12px] md:text-white/40">
+                        <p className="text-[13px] text-sv-text-3 pr-3 truncate md:text-[12px]">
                           {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
                         </p>
                         {unread > 0 && (
@@ -161,7 +161,7 @@ const ChatSidebar = ({
                     <div className="hidden group-hover:flex items-center gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePin(conv._id); }}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white"
+                        className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--sv-surface-3))] text-sv-text-3 hover:text-sv-text"
                         title="Pin"
                       >
                         <MoreVertical size={12} /> {/* Using MoreVertical as placeholder or Check */}
@@ -182,7 +182,7 @@ const ChatSidebar = ({
 
       <button
         onClick={() => setShowNewChatModal(true)}
-        className="md:hidden fixed bottom-8 right-8 w-14 h-14 rounded-full flex items-center justify-center bg-[#5a5a9f] text-white shadow-2xl z-40 transition-transform active:scale-95"
+        className="md:hidden fixed bottom-8 right-8 w-14 h-14 rounded-full flex items-center justify-center sv-gradient text-white shadow-[0_16px_30px_-10px_hsl(var(--sv-accent)/0.55)] z-40 transition-transform active:scale-95"
       >
         <MessageSquare size={24} />
       </button>
