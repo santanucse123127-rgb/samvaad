@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Plus, ImageIcon, Users, MessageSquare, Phone, CircleDot, Megaphone, Settings
+  X, Plus, ImageIcon, Users, MessageSquare, Phone, CircleDot, Megaphone, Settings, Bell, ChevronDown, File
 } from "lucide-react";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
@@ -263,13 +263,83 @@ const Chat = ({ token }) => {
       <div className="md:hidden h-full">
         <MobileChatApp {...commonProps} />
       </div>
-      <div className="hidden md:flex h-screen overflow-hidden sv-animated-bg p-4 lg:p-6">
-        <VibeBackgrounds />
-        <MagicEffectManager />
-        <div className="flex flex-1 min-h-0 rounded-[28px] border border-sv/70 bg-[hsl(var(--sv-surface))/0.92] backdrop-blur-xl shadow-[0_32px_80px_-18px_rgba(15,23,42,0.35)] overflow-hidden">
-          <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
-          <ChatSidebar {...commonProps} />
-          <ChatWindow {...commonProps} />
+      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text" style={{ background: 'hsl(var(--sv-nav-bg))' }}>
+        <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
+        
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+          {/* Global Top Bar */}
+          <div className="h-[72px] flex items-center justify-between px-8 border-b border-white/5" style={{ background: 'hsl(var(--sv-nav-bg))' }}>
+            <div className="w-[400px] h-11 rounded-xl flex items-center px-4 gap-3 bg-black/20 border border-white/5">
+               <input type="text" placeholder="Search anything.." className="bg-transparent border-none outline-none text-sm w-full text-white/50 focus:text-white transition-colors" />
+               <Search size={18} className="text-white/40" />
+            </div>
+            <div className="flex items-center gap-6">
+               <button className="relative text-white/60 hover:text-white transition-colors">
+                  <Bell size={20} />
+                  <span className="absolute 0 top-0 right-0 w-2.5 h-2.5 bg-white rounded-full border-2 border-[hsl(var(--sv-nav-bg))]" />
+               </button>
+               <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                   <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/10">
+                     <img src={user?.avatar || '/default-avatar.png'} alt="user" className="w-full h-full object-cover" />
+                   </div>
+                   <ChevronDown size={16} className="text-white/40" />
+               </button>
+            </div>
+          </div>
+
+          <div className="flex flex-1 min-h-0 min-w-0" style={{ background: 'hsl(var(--sv-surface))' }}>
+            <ChatSidebar {...commonProps} />
+            <ChatWindow {...commonProps} />
+            
+            {/* Right Sidebar */}
+            {selectedConversation && (
+              <div className="w-[280px] hidden lg:flex flex-col flex-shrink-0 border-l border-white/5" style={{ background: 'hsl(var(--sv-surface))' }}>
+                 <div className="flex flex-col items-center pt-10 pb-6 border-b border-white/5">
+                    <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={20} />
+                    <h3 className="mt-4 font-bold text-base text-white">{getConversationName(selectedConversation)}</h3>
+                    <p className="text-xs mt-1 text-white/40">@{getConversationName(selectedConversation).toLowerCase().replace(/\s/g, '')}</p>
+                 </div>
+                 <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                         <h4 className="text-xs font-bold text-white/60">Attachments</h4>
+                         <ChevronDown size={14} className="text-white/40" />
+                      </div>
+                      <div className="space-y-4">
+                         <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[#EA4335]/10 flex items-center justify-center text-[#EA4335]"><File size={16} /></div>
+                            <div><p className="text-xs font-bold text-white">Very important file.figma</p><p className="text-[10px] text-white/40">7.5 MB 3.22.24</p></div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[#FBBC05]/10 flex items-center justify-center text-[#FBBC05]"><File size={16} /></div>
+                            <div><p className="text-xs font-bold text-white">Some file.scratch</p><p className="text-[10px] text-white/40">7.5 MB 3.22.24</p></div>
+                         </div>
+                      </div>
+                      <button className="text-[11px] font-bold mt-4 text-sv-accent">View all</button>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                         <h4 className="text-xs font-bold text-white/60">Members</h4>
+                         <ChevronDown size={14} className="text-white/40" />
+                      </div>
+                      <div className="space-y-4">
+                         <button className="flex items-center gap-3 text-sv-accent w-full text-left">
+                            <div className="w-8 h-8 rounded-full bg-sv-accent/10 flex items-center justify-center"><Plus size={16} /></div>
+                            <span className="text-xs font-bold">Add Member</span>
+                         </button>
+                         {selectedConversation.participants?.slice(0,3).map(p => (
+                            <div key={p._id} className="flex items-center gap-3">
+                               <Avatar src={p.avatar} name={p.name} size={8} />
+                               <span className="text-xs font-bold text-white/80">{p.name}</span>
+                            </div>
+                         ))}
+                      </div>
+                    </div>
+                 </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

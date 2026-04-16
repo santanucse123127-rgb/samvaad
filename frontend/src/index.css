@@ -27,24 +27,22 @@
     --radius: 1rem;
 
     /* Samvaad Design Tokens - Dark Navy Theme */
-    --sv-bg: 235 35% 9%;
-    --sv-surface: 235 30% 13%;
-    --sv-surface-2: 235 25% 17%;
-    --sv-surface-3: 235 22% 21%;
-    --sv-border: 235 20% 26%;
-    --sv-accent: 217 91% 60%;
-    /* Blue accent */
-    --sv-accent-2: 231 95% 65%;
-    /* Purple-blue */
-    --sv-text: 213 31% 92%;
-    --sv-text-2: 215 20% 62%;
-    --sv-text-3: 215 15% 45%;
-    --sv-bubble-own: 217 91% 60%;
-    --sv-bubble-own-alt: 231 95% 65%;
-    --sv-bubble-other: 235 25% 17%;
+    --sv-bg: 230 10% 12%;       /* Main left/right background #1a1b20 */
+    --sv-surface: 230 11% 15%;  /* Center/Sidebar background #22242a */
+    --sv-surface-2: 230 11% 18%;
+    --sv-surface-3: 230 11% 22%;
+    --sv-border: 230 10% 25%;
+    --sv-accent: 245 80% 64%;   /* Vibrant purple/blue */
+    --sv-accent-2: 255 75% 65%;
+    --sv-text: 0 0% 98%;
+    --sv-text-2: 220 10% 75%;
+    --sv-text-3: 220 10% 55%;
+    --sv-bubble-own: 245 80% 64%;  /* Like the sent message */
+    --sv-bubble-own-alt: 255 75% 65%;
+    --sv-bubble-other: 230 11% 18%; /* Dark grey bubble */
     --sv-online: 142 70% 45%;
     --sv-danger: 0 72% 51%;
-    --sv-nav-bg: 235 40% 7%;
+    --sv-nav-bg: 230 10% 10%;
   }
 
   html {
@@ -55,7 +53,7 @@
     @apply antialiased;
     background-color: hsl(var(--sv-bg));
     color: hsl(var(--sv-text));
-    font-family: 'Inter', 'Outfit', system-ui, sans-serif;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }

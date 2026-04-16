@@ -40,24 +40,14 @@ const ChatSidebar = ({
       ${mobileShowSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
       {/* Sidebar Header */}
-      <div className="flex items-center justify-between px-6 py-6 flex-shrink-0">
-        <div className="md:hidden">
-          <p className="text-sm font-medium text-sv-text-3">Hello,</p>
-          <h2 className="text-2xl font-black text-sv-text leading-tight">
-            {user?.name?.split(' ')[0] || "Johan"}
-          </h2>
-        </div>
-        <h2 className="hidden md:block text-xl font-black italic tracking-tighter" style={{ color: 'hsl(var(--sv-text))' }}>
-          {activeRailTab === 'chats' && showArchivedOnly ? "Archived" : activeRailTab === 'chats' ? "Messages" : activeRailTab.charAt(0).toUpperCase() + activeRailTab.slice(1)}
-        </h2>
-        <div className="flex items-center gap-2">
-            <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-sv-text transition-colors">
-              <Search size={20} />
-            </button>
-            <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-sv-text transition-colors">
+      <div className="flex flex-col px-6 py-6 flex-shrink-0 gap-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[28px] font-bold text-white tracking-tight">Messages</h2>
+          <div className="flex items-center gap-2">
+            <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-white transition-colors">
               <MoreVertical size={20} />
             </button>
-          <div className="hidden md:flex items-center gap-1">
+<div className="hidden md:flex items-center gap-1">
             {activeRailTab === 'chats' && (
               <button
                 onClick={() => setShowArchivedOnly(p => !p)}
@@ -77,22 +67,24 @@ const ChatSidebar = ({
               </button>
             )}
           </div>
+          </div>
         </div>
       </div>
 
       {/* Search */}
       {!['profile', 'settings'].includes(activeRailTab) && (
-        <div className="px-5 pb-4">
+        <div className="px-6 pb-4">
           <div className="relative group">
             <Search
-              size={14}
+              size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-white"
               style={{ color: 'hsl(var(--sv-text-3))' }}
             />
             <input
               type="text"
-              placeholder={`Search ${activeRailTab}...`}
-              className="sv-input rounded-2xl pl-10 py-2.5 text-xs"
+              placeholder={`Search...`}
+              className="w-full rounded-xl pl-11 py-3 text-sm font-medium outline-none transition-all placeholder:text-sv-text-3 text-white focus:ring-1 focus:ring-sv-accent"
+              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -149,23 +141,18 @@ const ChatSidebar = ({
                           {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mt-1">
                         {isConvTyping ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[12px] font-medium" style={{ color: 'hsl(var(--sv-accent))' }}>typing</span>
-                            <div className="flex gap-[3px] items-center">
-                              <span className="sv-typing-dot" style={{ width: 3, height: 3 }} />
-                              <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.2s' }} />
-                              <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.4s' }} />
-                            </div>
+                          <div className="flex flex-col w-full">
+                            <span className="text-[13px] font-medium" style={{ color: '#10B981' }}>Typing..</span>
                           </div>
                         ) : (
-                          <p className="text-[12px] pr-3 truncate" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                          <p className="text-[14px] pr-3 truncate" style={{ color: 'hsl(var(--sv-text-3))' }}>
                             {lastMsg ? (lastMsg.type === "image" ? "📷 Photo" : lastMsg.type === "file" ? "📎 File" : lastMsg.content) : "No messages yet"}
                           </p>
                         )}
-                        {unread > 0 && (
-                          <div className="sv-unread-badge ml-2 shrink-0">
+                        {unread > 0 && !isConvTyping && (
+                          <div className="w-5 h-5 flex items-center justify-center rounded-full bg-[#EF4444] text-white text-[10px] font-bold shrink-0 shadow-lg">
                             {unread > 99 ? "99+" : unread}
                           </div>
                         )}

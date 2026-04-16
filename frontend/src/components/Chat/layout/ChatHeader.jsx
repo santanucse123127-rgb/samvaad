@@ -45,72 +45,38 @@ const ChatHeader = ({
   return (
     <>
       {/* Desktop Header */}
-      <header className="sv-chat-header-v2 md:flex hidden flex-shrink-0">
+      <header className="md:flex hidden flex-shrink-0 z-20 border-b border-white/5" style={{ background: 'hsl(var(--sv-surface))' }}>
         <div className="flex items-center gap-4 w-full px-6" style={{ height: 72 }}>
           <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
             <div className="relative flex-shrink-0">
               <Avatar src={convAvatar} name={convName} size={11} online={online && !isGroup} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-[15px] tracking-tight truncate group-hover:text-sv-accent transition-colors" style={{ color: 'hsl(var(--sv-text))' }}>
-                {convName}
-              </p>
-              {isTyping ? (
-                <div className="sv-header-typing-dots">
-                  <span className="text-[11px] font-semibold" style={{ color: 'hsl(var(--sv-accent))' }}>typing</span>
-                  <div className="flex gap-0.5 ml-1">
-                    <span className="sv-typing-dot" style={{ width: 3, height: 3 }} />
-                    <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.2s' }} />
-                    <span className="sv-typing-dot" style={{ width: 3, height: 3, animationDelay: '0.4s' }} />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[11px] truncate font-medium" style={{ color: online && !isGroup ? 'hsl(var(--sv-online))' : 'hsl(var(--sv-text-3))' }}>
-                  {statusText}
+              <div className="flex items-center gap-4">
+                <p className="font-bold text-[20px] tracking-tight truncate group-hover:text-sv-accent transition-colors text-white">
+                  {convName}
                 </p>
-              )}
+              </div>
+              <p className="text-[13px] truncate font-medium text-white/50">
+                {statusText}
+              </p>
             </div>
           </button>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              className="sv-icon-btn w-9 h-9 rounded-xl"
-              onClick={() => setActiveCall({ type: "voice", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
-              title="Voice call"
-            >
-              <Phone size={18} />
-            </button>
-            <button
-              className="sv-icon-btn w-9 h-9 rounded-xl"
-              onClick={() => setActiveCall({ type: "video", otherUser: selectedConversation?.participants?.find(p => p._id !== userId) || selectedConversation })}
-              title="Video call"
-            >
-              <Video size={18} />
-            </button>
-            <div className="w-[1px] h-5 mx-1" style={{ background: 'hsl(var(--sv-border))' }} />
-            <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowInChatSearch(p => !p)} title="Search">
-              <Search size={18} />
-            </button>
-            <div className="relative" ref={moreMenuRef}>
-              <button className="sv-icon-btn w-9 h-9 rounded-xl" onClick={() => setShowMoreMenu(p => !p)} title="More options">
-                <MoreVertical size={18} />
-              </button>
-              <AnimatePresence>
-                {showMoreMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                    className="sv-dropdown right-0 mt-2"
-                  >
-                    <button onClick={() => setShowProfile(true)} className="sv-dropdown-item"><Users size={16} /> View Profile</button>
-                    <button onClick={() => setShowBgPicker(true)} className="sv-dropdown-item"><ImageIcon size={16} /> Change Wallpaper</button>
-                    <div className="h-px my-1" style={{ background: 'hsl(var(--sv-border))' }} />
-                    <button onClick={() => setShowClearConfirm(true)} className="sv-dropdown-item danger"><Trash2 size={16} /> Clear Chat</button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isGroup && (
+               <div className="flex items-center mr-4">
+                   {selectedConversation.participants?.slice(0,3).map((p,i) => (
+                      <div key={p._id} className="w-8 h-8 rounded-full border-2 border-[#1a1b20] overflow-hidden -ml-2 first:ml-0 shadow-lg">
+                          <img src={p.avatar || '/default-avatar.png'} alt={p.name} className="w-full h-full object-cover" />
+                      </div>
+                   ))}
+                   <div className="w-8 h-8 rounded-full border-2 border-[#1a1b20] overflow-hidden -ml-2 bg-white/5 flex items-center justify-center text-xs font-bold text-white shadow-lg cursor-pointer hover:bg-white/10 transition-colors">
+                     +
+                   </div>
+               </div>
+            )}
+           
           </div>
         </div>
       </header>

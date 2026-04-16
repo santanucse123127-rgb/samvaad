@@ -13,13 +13,20 @@ const NavRail = ({
   showArchivedOnly, 
   setShowArchivedOnly, 
   vibes, 
-  activeVibe, 
   setActiveVibe, 
   user 
 }) => {
   return (
-    <aside className="sv-nav-rail hidden md:flex">
-      <div className="flex flex-col items-center gap-4 w-full pt-4">
+    <aside className="sv-nav-rail hidden md:flex" style={{ width: '80px', background: 'hsl(var(--sv-nav-bg))', borderRight: '1px solid rgba(255,255,255,0.03)' }}>
+      <div className="flex flex-col items-center gap-6 w-full pt-6">
+        {/* OCTOM LOGO */}
+        <div className="flex flex-col flex-shrink-0 items-center justify-center mb-4 cursor-pointer">
+          <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-sv-accent mb-1 transform rotate-45 shadow-[0_0_15px_hsl(var(--sv-accent)/0.5)]">
+            <span className="text-white font-black transform -rotate-45 text-sm">O</span>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#e2e8f0]">Octom.</span>
+        </div>
+
         {/* Chats */}
         <div className="relative group">
           <button
