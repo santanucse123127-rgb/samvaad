@@ -764,9 +764,9 @@
   flex-direction: column;
   align-items: center;
   padding: 20px 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: transparent;
   backdrop-filter: blur(24px);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
   z-index: 30;
 }
@@ -778,7 +778,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   border: none;
@@ -786,13 +786,14 @@
 }
 
 .sv-nav-item:hover {
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .sv-nav-item.active {
-  color: hsl(var(--sv-accent));
-  background: hsl(var(--sv-accent) / 0.12);
+  color: #ffffff;
+  background: #000000;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }
 
 /*  Sidebar V2  */
@@ -800,9 +801,9 @@
   width: 320px;
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.15);
+  background: transparent;
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
   overflow: hidden;
 }

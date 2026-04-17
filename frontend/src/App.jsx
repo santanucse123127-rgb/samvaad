@@ -77,8 +77,8 @@ const AnimatedRoutes = () => {
 /* ── App shell ── */
 const AppContent = () => {
   useEffect(() => {
-    // Ensure dark class is always applied for our design system
-    document.documentElement.classList.add("dark");
+    // Ensure light theme for premium UI match
+    document.documentElement.classList.remove("dark");
   }, []);
 
   return <AnimatedRoutes />;

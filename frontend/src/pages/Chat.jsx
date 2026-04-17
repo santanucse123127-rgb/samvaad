@@ -273,45 +273,45 @@ const Chat = ({ token }) => {
             
             {/* Right Sidebar */}
             {selectedConversation && (
-              <div className="w-[280px] hidden lg:flex flex-col flex-shrink-0 border-l border-white/5" style={{ background: 'hsl(var(--sv-surface))' }}>
-                 <div className="flex flex-col items-center pt-10 pb-6 border-b border-white/5">
+              <div className="w-[280px] hidden lg:flex flex-col flex-shrink-0 border-l border-black/5" style={{ background: 'transparent' }}>
+                 <div className="flex flex-col items-center pt-10 pb-6 border-b border-black/5">
                     <Avatar src={getConversationAvatar(selectedConversation)} name={getConversationName(selectedConversation)} size={20} />
-                    <h3 className="mt-4 font-bold text-base text-white">{getConversationName(selectedConversation)}</h3>
-                    <p className="text-xs mt-1 text-white/40">@{getConversationName(selectedConversation).toLowerCase().replace(/\s/g, '')}</p>
+                    <h3 className="mt-4 font-bold text-base text-black font-outfit">{getConversationName(selectedConversation)}</h3>
+                    <p className="text-xs mt-1 text-black/40 font-outfit">@{getConversationName(selectedConversation).toLowerCase().replace(/\s/g, '')}</p>
                  </div>
                  <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                         <h4 className="text-xs font-bold text-white/60">Attachments</h4>
-                         <ChevronDown size={14} className="text-white/40" />
+                         <h4 className="text-xs font-bold text-black/60 font-outfit">Attachments</h4>
+                         <ChevronDown size={14} className="text-black/40" />
                       </div>
                       <div className="space-y-4">
                          <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-[#EA4335]/10 flex items-center justify-center text-[#EA4335]"><File size={16} /></div>
-                            <div><p className="text-xs font-bold text-white">Very important file.figma</p><p className="text-[10px] text-white/40">7.5 MB 3.22.24</p></div>
+                            <div><p className="text-xs font-bold text-black font-outfit">Very important file.figma</p><p className="text-[10px] text-black/40">7.5 MB 3.22.24</p></div>
                          </div>
                          <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-[#FBBC05]/10 flex items-center justify-center text-[#FBBC05]"><File size={16} /></div>
-                            <div><p className="text-xs font-bold text-white">Some file.scratch</p><p className="text-[10px] text-white/40">7.5 MB 3.22.24</p></div>
+                            <div><p className="text-xs font-bold text-black font-outfit">Some file.scratch</p><p className="text-[10px] text-black/40">7.5 MB 3.22.24</p></div>
                          </div>
                       </div>
-                      <button className="text-[11px] font-bold mt-4 text-sv-accent">View all</button>
+                      <button className="text-[11px] font-bold mt-4 text-black font-outfit underline underline-offset-2 opacity-80 hover:opacity-100">View all</button>
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                         <h4 className="text-xs font-bold text-white/60">Members</h4>
-                         <ChevronDown size={14} className="text-white/40" />
+                      <div className="flex items-center justify-between mb-4 border-t border-black/5 pt-6">
+                         <h4 className="text-xs font-bold text-black/60 font-outfit">Members</h4>
+                         <ChevronDown size={14} className="text-black/40" />
                       </div>
                       <div className="space-y-4">
-                         <button className="flex items-center gap-3 text-sv-accent w-full text-left">
-                            <div className="w-8 h-8 rounded-full bg-sv-accent/10 flex items-center justify-center"><Plus size={16} /></div>
-                            <span className="text-xs font-bold">Add Member</span>
+                         <button className="flex items-center gap-3 text-black opacity-80 hover:opacity-100 w-full text-left transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center"><Plus size={16} /></div>
+                            <span className="text-xs font-bold font-outfit">Add Member</span>
                          </button>
                          {selectedConversation.participants?.slice(0,3).map(p => (
                             <div key={p._id} className="flex items-center gap-3">
                                <Avatar src={p.avatar} name={p.name} size={8} />
-                               <span className="text-xs font-bold text-white/80">{p.name}</span>
+                               <span className="text-xs font-bold text-black/80 font-outfit">{p.name}</span>
                             </div>
                          ))}
                       </div>

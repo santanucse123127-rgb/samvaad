@@ -16,8 +16,8 @@ const ChatWindow = (props) => {
   return (
     <main
       className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300
-        ${mobileShowSidebar ? 'hidden md:flex' : 'fixed inset-0 z-50 flex pb-[env(safe-area-inset-bottom,0px)]'}`}
-      style={{ background: 'hsl(var(--sv-bg))' }}
+        ${mobileShowSidebar ? 'hidden md:flex' : 'fixed md:relative inset-0 md:inset-auto z-50 md:z-0 flex pb-[env(safe-area-inset-bottom,0px)] md:pb-0'}`}
+      style={{ background: '#ffffff' }}
     >
       <CallInterface />
       {/* Sticky header sits outside any scroll container */}
