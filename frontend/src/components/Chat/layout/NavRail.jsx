@@ -17,7 +17,7 @@ const NavRail = ({
   user 
 }) => {
   return (
-    <aside className="sv-nav-rail hidden md:flex" style={{ width: '80px', background: 'transparent', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
+    <aside className="sv-nav-rail hidden md:flex" style={{ width: '80px', background: 'transparent' }}>
       <div className="flex flex-col items-center gap-6 w-full pt-6">
         {/* LOGO */}
         <div className="flex flex-col flex-shrink-0 items-center justify-center mb-4 cursor-pointer">

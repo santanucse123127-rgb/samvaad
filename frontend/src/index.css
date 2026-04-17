@@ -273,8 +273,7 @@
   }
 
   .sv-conv-item.active {
-    background: hsl(var(--sv-accent) / 0.1);
-    box-shadow: inset 0 0 0 1px hsl(var(--sv-accent) / 0.15);
+    background: #eef7f4;
   }
 
   /* ──── Sidebar ──── */
@@ -766,7 +765,7 @@
   padding: 20px 0;
   background: transparent;
   backdrop-filter: blur(24px);
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: none;
   flex-shrink: 0;
   z-index: 30;
 }

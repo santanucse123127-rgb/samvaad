@@ -263,11 +263,10 @@ const Chat = ({ token }) => {
       <div className="md:hidden h-full">
         <MobileChatApp {...commonProps} />
       </div>
-      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text bg-gradient-to-br from-[#add7ca] to-[#e5efeb] p-6 lg:p-10">
-        <div className="flex w-full h-full rounded-[32px] overflow-hidden shadow-2xl border border-white/50 ring-1 ring-black/5" style={{ background: 'hsl(var(--sv-surface))' }}>
-          <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
-          
-          <div className="flex flex-1 min-h-0 min-w-0" style={{ background: 'hsl(var(--sv-surface))' }}>
+      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text bg-gradient-to-br from-[#e0f2ec] to-[#f4f7f6] p-4 lg:p-6 gap-2">
+        <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
+        <div className="flex flex-1 w-full h-full rounded-[32px] overflow-hidden shadow-[0_12px_40px_-16px_rgba(0,0,0,0.1)] border border-black/[0.03] ml-2" style={{ background: '#ffffff' }}>
+          <div className="flex flex-1 min-h-0 min-w-0" style={{ background: '#ffffff' }}>
             <ChatSidebar {...commonProps} />
             <ChatWindow {...commonProps} />
             

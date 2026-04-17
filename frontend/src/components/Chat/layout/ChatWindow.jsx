@@ -15,17 +15,33 @@ const ChatWindow = (props) => {
 
   return (
     <main
-      className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300
-        ${mobileShowSidebar ? 'hidden md:flex' : 'fixed md:relative inset-0 md:inset-auto z-50 md:z-0 flex pb-[env(safe-area-inset-bottom,0px)] md:pb-0'}`}
-      style={{ background: '#ffffff' }}
+      className={`
+        flex-1 min-w-0 min-h-0
+        relative flex flex-col
+        transition-all duration-300
+        ${mobileShowSidebar
+          ? "hidden md:flex"
+          : "fixed md:relative inset-0 md:inset-auto z-50 md:z-0 flex"}
+      `}
+      style={{ background: "#ffffff" }}
     >
       <CallInterface />
-      {/* Sticky header sits outside any scroll container */}
-      <ChatHeader selectedConversation={selectedConversation} {...rest} />
-      {/* Scrollable message area fills available space */}
-      <div className="flex flex-1 min-h-0 overflow-hidden flex-col">
-        <MessageList selectedConversation={selectedConversation} {...rest} />
-        <ChatInput selectedConversation={selectedConversation} {...rest} />
+
+      {/* fixed-height header zone */}
+      <div className="shrink-0">
+        <ChatHeader selectedConversation={selectedConversation} {...rest} />
+      </div>
+
+      {/* only this area scrolls */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <MessageList selectedConversation={selectedConversation} {...rest} />
+        </div>
+
+        {/* input fixed at bottom, no jumping */}
+        <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)] md:pb-0">
+          <ChatInput selectedConversation={selectedConversation} {...rest} />
+        </div>
       </div>
     </main>
   );
