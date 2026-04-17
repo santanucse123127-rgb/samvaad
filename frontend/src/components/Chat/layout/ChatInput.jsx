@@ -23,7 +23,7 @@ const ChatInput = ({
   return (
     <div
       className="px-4 md:px-6 pb-4 md:pb-6 pt-2 flex-shrink-0"
-      style={{ background: 'hsl(var(--sv-bg))', borderTop: '1px solid hsl(var(--sv-border) / 0.4)' }}
+      style={{ background: '#f8fafc', borderTop: '1px solid rgba(0,0,0,0.05)' }}
     >
       <div className="max-w-3xl mx-auto flex flex-col gap-2">
         {/* Previews (Reply/Upload) */}
@@ -62,11 +62,10 @@ const ChatInput = ({
         </AnimatePresence>
 
         {/* Input Container */}
-        <div className="sv-input-container-v2 relative"
-          style={{ background: 'hsl(var(--sv-surface-2))' }}>
-          <button onClick={() => setShowEmojiPicker(p => !p)}
-            className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-[hsl(var(--sv-surface-3))] text-sv-text-3 hover:text-sv-accent">
-            <Smile size={22} />
+        <div className="flex items-center bg-white border border-black/5 rounded-full px-2 py-2 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
+          <button type="button" onClick={() => fileInputRef.current?.click()}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 text-gray-400 hover:text-black">
+            <Plus size={22} className="rotate-45" />
           </button>
 
           <form onSubmit={handleSend} className="flex-1 flex items-center gap-2">
@@ -74,13 +73,10 @@ const ChatInput = ({
               type="text"
               value={newMessage}
               onChange={handleInputChange}
-              placeholder="Type a message..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] py-3 text-sv-text placeholder:text-sv-text-3"
+              placeholder="Write a Message"
+              className="flex-1 bg-transparent border-none outline-none text-[15px] py-2 px-2 text-black placeholder:text-gray-400 font-outfit"
             />
             <div className="flex items-center gap-1">
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 flex items-center justify-center text-sv-text-3 hover:text-sv-accent">
-                <Plus size={22} />
-              </button>
               {isRecording ? (
                 <div className="flex items-center gap-3 pr-2">
                   <span className="text-xs font-bold tabular-nums text-red-500 animate-pulse">{fmtDuration(recordingDuration)}</span>
@@ -89,12 +85,12 @@ const ChatInput = ({
                   </button>
                 </div>
               ) : (newMessage.trim() || uploadPreview) ? (
-                  <button type="submit" className="w-10 h-10 rounded-full flex items-center justify-center text-white sv-gradient shadow-[0_12px_26px_-10px_hsl(var(--sv-accent)/0.7)] transition-transform hover:scale-[1.03]">
-                    <Send size={20} />
+                  <button type="submit" className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-white bg-black shadow-lg transition-transform hover:scale-[1.03]">
+                    <Send size={18} />
                   </button>
                 ) : (
-                  <button type="button" onClick={startRecording} className="w-10 h-10 flex items-center justify-center text-sv-text-3 hover:text-sv-accent">
-                    <Mic size={22} />
+                  <button type="button" onClick={startRecording} className="w-[42px] h-[42px] rounded-full bg-black flex items-center justify-center text-white hover:opacity-80 transition-opacity">
+                    <Mic size={18} />
                   </button>
               )}
             </div>

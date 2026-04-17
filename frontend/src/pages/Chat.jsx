@@ -263,30 +263,10 @@ const Chat = ({ token }) => {
       <div className="md:hidden h-full">
         <MobileChatApp {...commonProps} />
       </div>
-      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text" style={{ background: 'hsl(var(--sv-nav-bg))' }}>
-        <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
-        
-        <div className="flex flex-col flex-1 min-w-0 min-h-0">
-          {/* Global Top Bar */}
-          <div className="h-[72px] flex items-center justify-between px-8 border-b border-white/5" style={{ background: 'hsl(var(--sv-nav-bg))' }}>
-            <div className="w-[400px] h-11 rounded-xl flex items-center px-4 gap-3 bg-black/20 border border-white/5">
-               <input type="text" placeholder="Search anything.." className="bg-transparent border-none outline-none text-sm w-full text-white/50 focus:text-white transition-colors" />
-               <Search size={18} className="text-white/40" />
-            </div>
-            <div className="flex items-center gap-6">
-               <button className="relative text-white/60 hover:text-white transition-colors">
-                  <Bell size={20} />
-                  <span className="absolute 0 top-0 right-0 w-2.5 h-2.5 bg-white rounded-full border-2 border-[hsl(var(--sv-nav-bg))]" />
-               </button>
-               <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                   <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/10">
-                     <img src={user?.avatar || '/default-avatar.png'} alt="user" className="w-full h-full object-cover" />
-                   </div>
-                   <ChevronDown size={16} className="text-white/40" />
-               </button>
-            </div>
-          </div>
-
+      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text bg-gradient-to-br from-[#add7ca] to-[#e5efeb] p-6 lg:p-10">
+        <div className="flex w-full h-full rounded-[32px] overflow-hidden shadow-2xl border border-white/50 ring-1 ring-black/5" style={{ background: 'hsl(var(--sv-surface))' }}>
+          <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
+          
           <div className="flex flex-1 min-h-0 min-w-0" style={{ background: 'hsl(var(--sv-surface))' }}>
             <ChatSidebar {...commonProps} />
             <ChatWindow {...commonProps} />

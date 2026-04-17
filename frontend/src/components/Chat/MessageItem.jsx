@@ -468,7 +468,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
               )}
             </AnimatePresence>
 
-            <div className="relative px-3.5 py-2.5 sv-bubble-own rounded-2xl rounded-br-md text-white shadow-[0_10px_24px_-12px_hsl(var(--sv-accent)/0.65)] max-w-full">
+            <div className="relative px-3.5 py-4 sv-bubble-own-p max-w-full">
               {message.replyTo && (
                 <div
                   onClick={() => {
@@ -622,8 +622,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className="relative px-3.5 py-2.5 sv-bubble-other rounded-2xl rounded-bl-md max-w-full"
-            style={{ color: 'hsl(var(--sv-text))' }}>
+          <div className="relative px-3.5 py-4 sv-bubble-other-p max-w-full text-white">
             {message.replyTo && (
               <div
                 onClick={() => {

@@ -1584,7 +1584,12 @@ const ConversationPage = ({
             <input
               value={input}
               onChange={onInputChange}
-              onFocus={() => setShowEmojiPicker(false)}
+              onFocus={() => {
+                setShowEmojiPicker(false);
+                setTimeout(() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                }, 300);
+              }}
               placeholder="Ok. Let me check"
               style={{
                 flex: 1,
@@ -2585,7 +2590,7 @@ export default function MobileChatApp(props) {
       style={{
         width: "100%",
         maxWidth: 430,
-        height: "100vh",
+        height: "100dvh",
         margin: "0 auto",
         background: "white",
         display: "flex",

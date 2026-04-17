@@ -183,9 +183,15 @@ export const ChatProvider = ({ children, token, userId }) => {
       }
 
       const encryptedData = JSON.parse(msg.content);
-      return await decryptMessage(encryptedData, sharedKey);
+      const dec = await decryptMessage(encryptedData, sharedKey);
+      if (dec === "[Unable to decrypt message]") throw new Error("Decrypt fail");
+      return dec;
     } catch (err) {
-      return "[Unable to decrypt]";
+      try {
+        const parsed = JSON.parse(msg.content);
+        if (parsed.iv && parsed.content) return "🔒 Encrypted Message (Keys unavailable)";
+      } catch (e) {}
+      return msg.content;
     }
   }, [userId]);
 

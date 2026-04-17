@@ -175,10 +175,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-  } catch (error) {
-    console.error("Error checking task reminders:", error);
-  }
-};
 
 const PORT = process.env.PORT || 5000;
 

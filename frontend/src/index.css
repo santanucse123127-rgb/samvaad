@@ -26,23 +26,22 @@
     --ring: 217 91% 60%;
     --radius: 1rem;
 
-    /* Samvaad Design Tokens - Dark Navy Theme */
-    --sv-bg: 230 10% 12%;       /* Main left/right background #1a1b20 */
-    --sv-surface: 230 11% 15%;  /* Center/Sidebar background #22242a */
-    --sv-surface-2: 230 11% 18%;
-    --sv-surface-3: 230 11% 22%;
-    --sv-border: 230 10% 25%;
-    --sv-accent: 245 80% 64%;   /* Vibrant purple/blue */
-    --sv-accent-2: 255 75% 65%;
-    --sv-text: 0 0% 98%;
-    --sv-text-2: 220 10% 75%;
-    --sv-text-3: 220 10% 55%;
-    --sv-bubble-own: 245 80% 64%;  /* Like the sent message */
-    --sv-bubble-own-alt: 255 75% 65%;
-    --sv-bubble-other: 230 11% 18%; /* Dark grey bubble */
+    /* Samvaad Design Tokens - Light Mint/Black Theme */
+    --sv-bg: 160 30% 85%;       /* Teal/mint background #b3d7c6 / #c3e2dc approx */
+    --sv-surface: 0 0% 100%;  /* Pure white */
+    --sv-surface-2: 0 0% 98%;
+    --sv-surface-3: 0 0% 95%;
+    --sv-border: 0 0% 90%;
+    --sv-accent: 0 0% 5%;   /* Black/Dark Grey */
+    --sv-accent-2: 0 0% 12%;
+    --sv-text: 0 0% 10%;
+    --sv-text-2: 0 0% 40%;
+    --sv-text-3: 0 0% 60%;
+    --sv-bubble-own: 0 0% 100%; /* White */
+    --sv-bubble-other: 0 0% 5%; /* Black */
     --sv-online: 142 70% 45%;
     --sv-danger: 0 72% 51%;
-    --sv-nav-bg: 230 10% 10%;
+    --sv-nav-bg: 0 0% 100% / 0.8;
   }
 
   html {
@@ -51,9 +50,9 @@
 
   body {
     @apply antialiased;
-    background-color: hsl(var(--sv-bg));
+    background: linear-gradient(135deg, hsl(188 38% 82%), hsl(155 35% 85%)); /* bg gradient */
     color: hsl(var(--sv-text));
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
@@ -200,22 +199,22 @@
   }
 
   .sv-bubble-own {
-    background: linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)));
-    color: white;
+    background: hsl(var(--sv-bubble-own));
+    color: hsl(var(--sv-text));
     border-bottom-right-radius: 4px;
-    box-shadow: 0 4px 16px -4px hsl(var(--sv-accent) / 0.4);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0,0,0,0.05);
     align-self: flex-end;
     margin-left: auto;
   }
 
   .sv-bubble-other {
     background: hsl(var(--sv-bubble-other));
-    color: hsl(var(--sv-text));
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: white;
     border-bottom-left-radius: 4px;
     align-self: flex-start;
     margin-right: auto;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   }
 
   /* ──── Online Dot ──── */
@@ -726,15 +725,16 @@
 }
 
 .sv-bubble-own-p {
-  background: linear-gradient(135deg, hsl(var(--sv-accent)), hsl(var(--sv-accent-2)));
-  color: white;
+  background: white;
+  color: black;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.05);
 }
 
 .sv-bubble-other-p {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  color: hsl(var(--sv-text));
+  background: black;
+  color: white;
   border-bottom-left-radius: 4px;
 }
 

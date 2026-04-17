@@ -42,7 +42,7 @@ const ChatSidebar = ({
       {/* Sidebar Header */}
       <div className="flex flex-col px-6 py-6 flex-shrink-0 gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-[28px] font-bold text-white tracking-tight">Messages</h2>
+          <h2 className="text-[28px] font-bold text-black tracking-tight font-outfit">Messages</h2>
           <div className="flex items-center gap-2">
             <button className="md:hidden w-10 h-10 rounded-full flex items-center justify-center bg-[hsl(var(--sv-surface-2))] text-sv-text-3 hover:text-white transition-colors">
               <MoreVertical size={20} />
@@ -61,7 +61,7 @@ const ChatSidebar = ({
               <button
                 id="new-chat-btn-v2"
                 onClick={() => setShowNewChatModal(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-[hsl(var(--sv-surface-2))] hover:bg-[hsl(var(--sv-surface-3))] text-sv-accent"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all bg-[hsl(var(--sv-surface-2))] hover:bg-black/5 text-black"
               >
                 <Plus size={18} />
               </button>
@@ -83,8 +83,8 @@ const ChatSidebar = ({
             <input
               type="text"
               placeholder={`Search...`}
-              className="w-full rounded-xl pl-11 py-3 text-sm font-medium outline-none transition-all placeholder:text-sv-text-3 text-white focus:ring-1 focus:ring-sv-accent"
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}
+              className="w-full rounded-xl pl-11 py-3 text-sm font-medium outline-none transition-all placeholder:text-sv-text-3 text-black focus:ring-1 focus:ring-black"
+              style={{ background: '#f1f5f9', border: '1px solid rgba(0,0,0,0.05)' }}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -137,7 +137,7 @@ const ChatSidebar = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <span className="font-semibold text-[14px] truncate" style={{ color: 'hsl(var(--sv-text))' }}>{convName}</span>
-                        <span className="text-[11px] tabular-nums flex-shrink-0 ml-2" style={{ color: 'hsl(var(--sv-text-3))' }}>
+                        <span className="text-[11px] font-medium tabular-nums flex-shrink-0 ml-2" style={{ color: 'hsl(var(--sv-text-3))' }}>
                           {lastMsg ? fmtTime(lastMsg.createdAt) : ""}
                         </span>
                       </div>

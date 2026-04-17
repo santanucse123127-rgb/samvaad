@@ -45,7 +45,7 @@ const ChatHeader = ({
   return (
     <>
       {/* Desktop Header */}
-      <header className="md:flex hidden flex-shrink-0 z-20 border-b border-white/5" style={{ background: 'hsl(var(--sv-surface))' }}>
+      <header className="md:flex hidden flex-shrink-0 z-20 border-b border-black/5" style={{ background: 'hsl(var(--sv-surface))' }}>
         <div className="flex items-center gap-4 w-full px-6" style={{ height: 72 }}>
           <button onClick={() => setShowProfile(p => !p)} className="flex items-center gap-3 flex-1 min-w-0 text-left group">
             <div className="relative flex-shrink-0">
@@ -53,11 +53,11 @@ const ChatHeader = ({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-4">
-                <p className="font-bold text-[20px] tracking-tight truncate group-hover:text-sv-accent transition-colors text-white">
+                <p className="font-bold text-[20px] tracking-tight truncate group-hover:text-black transition-colors text-black font-outfit">
                   {convName}
                 </p>
               </div>
-              <p className="text-[13px] truncate font-medium text-white/50">
+              <p className="text-[13px] truncate font-medium text-black/50">
                 {statusText}
               </p>
             </div>
@@ -67,11 +67,11 @@ const ChatHeader = ({
             {isGroup && (
                <div className="flex items-center mr-4">
                    {selectedConversation.participants?.slice(0,3).map((p,i) => (
-                      <div key={p._id} className="w-8 h-8 rounded-full border-2 border-[#1a1b20] overflow-hidden -ml-2 first:ml-0 shadow-lg">
+                      <div key={p._id} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden -ml-2 first:ml-0 shadow-lg">
                           <img src={p.avatar || '/default-avatar.png'} alt={p.name} className="w-full h-full object-cover" />
                       </div>
                    ))}
-                   <div className="w-8 h-8 rounded-full border-2 border-[#1a1b20] overflow-hidden -ml-2 bg-white/5 flex items-center justify-center text-xs font-bold text-white shadow-lg cursor-pointer hover:bg-white/10 transition-colors">
+                   <div className="w-8 h-8 rounded-full border-2 border-white overflow-hidden -ml-2 bg-black/5 flex items-center justify-center text-xs font-bold text-black shadow-lg cursor-pointer hover:bg-black/10 transition-colors">
                      +
                    </div>
                </div>
