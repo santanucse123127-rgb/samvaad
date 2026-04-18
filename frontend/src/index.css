@@ -46,6 +46,11 @@
 
   html {
     scroll-behavior: smooth;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   body {
@@ -53,8 +58,18 @@
     background: linear-gradient(135deg, hsl(188 38% 82%), hsl(155 35% 85%)); /* bg gradient */
     color: hsl(var(--sv-text));
     font-family: 'Outfit', 'Inter', system-ui, sans-serif;
-    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     -webkit-font-smoothing: antialiased;
+  }
+
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
   * {

@@ -5,19 +5,26 @@ import Conversation from '../models/Conversation.js';
 import Task from '../models/Task.js';
 import { sendToUser } from '../utils/pushNotification.js';
 
-// Configuration
-const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1';
-const REDIS_PORT = process.env.REDIS_PORT || 6379;
+const REDIS_HOST = process.env.REDIS_HOST;
+const REDIS_PORT = process.env.REDIS_PORT;
+const REDIS_URL = process.env.REDIS_URL;
 
-let connection;
-try {
-  connection = new IORedis({
-    host: REDIS_HOST,
-    port: REDIS_PORT,
-    maxRetriesPerRequest: null,
-  });
-} catch (err) {
-  console.warn('⚠️ Redis connection failed. Falling back to internal interval scheduler.');
+let connection = null;
+if (process.env.USE_REDIS === 'true' || REDIS_URL || REDIS_HOST) {
+  try {
+    connection = new IORedis(REDIS_URL || {
+      host: REDIS_HOST || '127.0.0.1',
+      port: REDIS_PORT || 6379,
+      maxRetriesPerRequest: null,
+    });
+    
+    // Suppress connection errors to prevent log spam
+    connection.on('error', (err) => {
+      // Ignored intentionally to prevent ECONNREFUSED spam
+    });
+  } catch (err) {
+    console.warn('⚠️ Redis connection failed. Falling back to internal interval scheduler.');
+  }
 }
 
 // Queues

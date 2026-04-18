@@ -34,9 +34,7 @@ const ChatWindow = (props) => {
 
       {/* only this area scrolls */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <MessageList selectedConversation={selectedConversation} {...rest} />
-        </div>
+        <MessageList selectedConversation={selectedConversation} {...rest} />
 
         {/* input fixed at bottom, no jumping */}
         <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)] md:pb-0">

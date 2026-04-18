@@ -154,7 +154,7 @@ const Chat = ({ token }) => {
   }, [selectedConversation]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   useEffect(() => {
@@ -263,7 +263,7 @@ const Chat = ({ token }) => {
       <div className="md:hidden h-full">
         <MobileChatApp {...commonProps} />
       </div>
-      <div className="hidden md:flex h-screen w-screen overflow-hidden text-sv-text bg-gradient-to-br from-[#e0f2ec] to-[#f4f7f6] p-4 lg:p-6 gap-2">
+      <div className="hidden md:flex fixed inset-0 overflow-hidden text-sv-text bg-gradient-to-br from-[#e0f2ec] to-[#f4f7f6] p-4 lg:p-6 gap-2">
         <NavRail {...commonProps} vibes={vibes} activeVibe={activeVibe} setActiveVibe={setActiveVibe} />
         <div className="flex flex-1 w-full h-full rounded-[32px] overflow-hidden shadow-[0_12px_40px_-16px_rgba(0,0,0,0.1)] border border-black/[0.03] ml-2" style={{ background: '#ffffff' }}>
           <div className="flex flex-1 min-h-0 min-w-0" style={{ background: '#ffffff' }}>

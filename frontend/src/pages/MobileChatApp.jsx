@@ -633,7 +633,7 @@ const ConversationPage = ({
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   const [activeMsg, setActiveMsg] = useState(null);
@@ -1587,7 +1587,7 @@ const ConversationPage = ({
               onFocus={() => {
                 setShowEmojiPicker(false);
                 setTimeout(() => {
-                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
                 }, 300);
               }}
               placeholder="Ok. Let me check"
