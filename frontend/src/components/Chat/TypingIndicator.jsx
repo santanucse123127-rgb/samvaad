@@ -1,29 +1,34 @@
 import { motion } from 'framer-motion';
 
-const DOT_COUNT = 4;
-
 const TypingIndicator = () => {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.92 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="flex items-end gap-0 self-start"
-            style={{ marginBottom: '2px' }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex items-center gap-2 py-2 px-3 self-start"
         >
-            <div
-                style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '20px',
-                    borderBottomLeftRadius: '4px',
-                }}
-            >
-               <span className="text-[#10B981] text-[13px] font-medium tracking-wide motion-safe:animate-pulse">Typing..</span>
+            <div className="flex gap-1.5 items-center">
+                {[0, 1, 2].map((i) => (
+                    <motion.div
+                        key={i}
+                        animate={{ y: [0, -5, 0] }}
+                        transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: i * 0.15,
+                            ease: "easeInOut"
+                        }}
+                        style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: "hsl(var(--sv-online))",
+                        }}
+                    />
+                ))}
             </div>
+            <span className="text-[12px] font-bold uppercase tracking-widest text-black/30 ml-2">Typing</span>
         </motion.div>
     );
 };

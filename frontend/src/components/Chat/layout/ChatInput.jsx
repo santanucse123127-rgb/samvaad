@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Smile, Plus, Send, Mic, File, X, Reply } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -9,17 +9,42 @@ const ChatInput = ({
   setUploadPreview,
   showEmojiPicker,
   setShowEmojiPicker,
-  newMessage,
-  handleInputChange,
-  handleSend,
+  handleSend, // This will now accept (content, type, replyTo, extraData)
   fileInputRef,
   handleFileSelect,
   isRecording,
   startRecording,
   stopRecording,
   recordingDuration,
-  fmtDuration
+  fmtDuration,
+  handleTyping,
+  handleStopTyping,
 }) => {
+  const [localMessage, setLocalMessage] = useState("");
+  const typingTimeoutRef = useRef(null);
+
+  const onInputChange = (e) => {
+    const val = e.target.value;
+    setLocalMessage(val);
+    handleTyping();
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      handleStopTyping();
+    }, 2000);
+  };
+
+  const onSubmit = (e) => {
+    e?.preventDefault();
+    if (!localMessage.trim() && !uploadPreview) return;
+    
+    // Pass the message directly to handleSend
+    handleSend(e, localMessage);
+    setLocalMessage("");
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    handleStopTyping();
+  };
+
   return (
     <div
       className="px-4 md:px-6 pb-4 md:pb-6 pt-2 flex-shrink-0"
@@ -68,11 +93,11 @@ const ChatInput = ({
             <Plus size={22} className="rotate-45" />
           </button>
 
-          <form onSubmit={handleSend} className="flex-1 flex items-center gap-2">
+          <form onSubmit={onSubmit} className="flex-1 flex items-center gap-2">
             <input
               type="text"
-              value={newMessage}
-              onChange={handleInputChange}
+              value={localMessage}
+              onChange={onInputChange}
               placeholder="Write a Message"
               className="flex-1 bg-transparent border-none outline-none text-[15px] py-2 px-2 text-black placeholder:text-gray-400 font-outfit"
             />
@@ -84,7 +109,7 @@ const ChatInput = ({
                     <Send size={18} />
                   </button>
                 </div>
-              ) : (newMessage.trim() || uploadPreview) ? (
+              ) : (localMessage.trim() || uploadPreview) ? (
                   <button type="submit" className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-white bg-black shadow-lg transition-transform hover:scale-[1.03]">
                     <Send size={18} />
                   </button>
@@ -102,4 +127,4 @@ const ChatInput = ({
   );
 };
 
-export default ChatInput;
+export default React.memo(ChatInput);

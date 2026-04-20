@@ -181,4 +181,4 @@ const ChatSidebar = ({
   );
 };
 
-export default ChatSidebar;
+export default React.memo(ChatSidebar);

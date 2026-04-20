@@ -164,4 +164,4 @@ const NavRail = ({
   );
 };
 
-export default NavRail;
+export default React.memo(NavRail);

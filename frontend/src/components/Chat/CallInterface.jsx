@@ -117,17 +117,24 @@ const CallInterface = () => {
     useEffect(() => {
         const stream = remoteStreamRef.current;
         if (!stream) return;
-        if (!isVideo && remoteAudioRef.current && remoteAudioRef.current.srcObject !== stream) {
-            console.log('🔊 Attaching remote stream to <audio>');
-            remoteAudioRef.current.srcObject = stream;
-            remoteAudioRef.current.volume = 1;
-            remoteAudioRef.current.play().catch(e => console.warn('audio.play():', e));
+
+        // Use a flag to avoid multiple play() calls if already playing
+        const attachStream = (el, stream) => {
+            if (el && el.srcObject !== stream) {
+                el.srcObject = stream;
+                el.play().catch(e => {
+                    if (e.name !== 'AbortError') console.warn('Stream play error:', e);
+                });
+            }
+        };
+
+        if (!isVideo && remoteAudioRef.current) {
+            attachStream(remoteAudioRef.current, stream);
         }
-        if (isVideo && remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
-            remoteVideoRef.current.srcObject = stream;
-            remoteVideoRef.current.play().catch(() => { });
+        if (isVideo && remoteVideoRef.current) {
+            attachStream(remoteVideoRef.current, stream);
         }
-    });   /* ← intentionally no deps array: runs every render */
+    });   /* ← intentionally no deps array: runs every render to ensure element binding */
 
     /* ── Ringing sound ── */
     useEffect(() => {
@@ -224,15 +231,19 @@ const CallInterface = () => {
 
         pc.onconnectionstatechange = () => {
             console.log('🔗 connection:', pc.connectionState);
-            if (pc.connectionState === 'connected') setCallStatus('connected');
-            if (['disconnected', 'failed'].includes(pc.connectionState)) {
+            const state = pc.connectionState;
+            if (state === 'connected') setCallStatus('connected');
+            if (['disconnected', 'failed', 'closed'].includes(state)) {
                 if (callStatusRef.current !== 'idle') cleanup();
             }
         };
 
         pc.oniceconnectionstatechange = () => {
             console.log('🧊 ICE:', pc.iceConnectionState);
-            if (['connected', 'completed'].includes(pc.iceConnectionState)) setCallStatus('connected');
+            const state = pc.iceConnectionState;
+            if (['connected', 'completed'].includes(state)) {
+                setCallStatus('connected');
+            }
         };
 
         pcRef.current = pc;
@@ -272,9 +283,7 @@ const CallInterface = () => {
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(answer));
                 await drainIce();
-                setTimeout(() => {
-                    if (['ringing', 'connecting'].includes(callStatusRef.current)) setCallStatus('connected');
-                }, 2500);
+                // Removed arbitrary setTimeout; relying on connection state events for 'connected' status
             } catch (e) { console.error('setRemoteDescription(answer):', e); }
         };
 
@@ -336,11 +345,8 @@ const CallInterface = () => {
         /* Switch UI — set activeCall FIRST so audio element mounts */
         setActiveCall({ otherUser: incomingCall.fromUser, type: callType });
         setIncomingCall(null);
-
-        setTimeout(() => {
-            if (callStatusRef.current === 'connecting') setCallStatus('connected');
-        }, 4000);
-    }, [incomingCall, getMedia, makePeer, drainIce, setActiveCall, setIncomingCall]); // eslint-disable-line
+        // Removed arbitrary setTimeout; relying on connection state events for 'connected' status
+    }, [incomingCall, getMedia, makePeer, drainIce, setActiveCall, setIncomingCall, rejectCall]); // eslint-disable-line
 
     const rejectCall = useCallback(() => {
         if (incomingCall?.from) socketService.emit('reject-call', { to: incomingCall.from });

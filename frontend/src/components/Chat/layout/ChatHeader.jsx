@@ -105,4 +105,4 @@ const ChatHeader = ({
   );
 };
 
-export default ChatHeader;
+export default React.memo(ChatHeader);

@@ -72,7 +72,6 @@ const Chat = ({ token }) => {
   const { activeVibe, setActiveVibe, vibes } = useVibe();
 
   /* ─── State ─── */
-  const [newMessage, setNewMessage] = useState("");
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -166,27 +165,22 @@ const Chat = ({ token }) => {
   }, []);
 
   /* ─── Handlers ─── */
-  const handleSend = async (e) => {
+  const handleSend = async (e, content) => {
     e?.preventDefault();
-    if (!newMessage.trim() && !uploadPreview) return;
+    if (!content?.trim() && !uploadPreview) return;
     const extraData = { isViewOnce };
     if (uploadPreview) {
       const type = uploadPreview.type.startsWith("image/") ? "image" : uploadPreview.type.startsWith("video/") ? "video" : uploadPreview.type.startsWith("audio/") ? "voice" : "file";
       await sendMediaMessage(uploadPreview.file, type, extraData);
       setUploadPreview(null);
     } else {
-      await sendMessage(newMessage, "text", replyToMessage?.id, extraData);
+      await sendMessage(content, "text", replyToMessage?.id, extraData);
     }
-    setNewMessage("");
     setReplyToMessage(null);
     setIsViewOnce(false);
     handleStopTyping();
   };
 
-  const handleInputChange = (e) => {
-    setNewMessage(e.target.value);
-    handleTyping();
-  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -243,8 +237,8 @@ const Chat = ({ token }) => {
     unreadChatsCount, unreadCallsCount, archivedCount, hasNewStatuses,
     activeRailTab, setActiveRailTab, showArchivedOnly, setShowArchivedOnly,
     searchQuery, setSearchQuery, isSearchingGlobal, globalSearchMessages,
-    mobileShowSidebar, setMobileShowSidebar, newMessage, setNewMessage,
-    handleSend, handleInputChange, handleFileSelect, fileInputRef,
+    mobileShowSidebar, setMobileShowSidebar,
+    handleSend, handleFileSelect, fileInputRef,
     replyToMessage, setReplyToMessage, uploadPreview, setUploadPreview,
     showEmojiPicker, setShowEmojiPicker, isRecording, startRecording, stopRecording,
     recordingDuration, fmtDuration, getConversationName, getConversationAvatar,
@@ -256,6 +250,7 @@ const Chat = ({ token }) => {
     messagesWithDates, messageContainerRef, messagesEndRef, currentBgCls,
     setForwardMessageData, setShowForwardModal, handleScroll: (e) => {}, 
     handleNewChat: createNewConversation,
+    handleTyping, handleStopTyping
   };
 
   return (

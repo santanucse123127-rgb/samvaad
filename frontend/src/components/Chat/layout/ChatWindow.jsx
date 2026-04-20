@@ -45,4 +45,4 @@ const ChatWindow = (props) => {
   );
 };
 
-export default ChatWindow;
+export default React.memo(ChatWindow);

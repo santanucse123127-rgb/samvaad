@@ -1,3 +1,4 @@
+import React from "react";
 const Avatar = ({ src, name, size = 10, online = false, className = "" }) => (
     <div className={`relative flex-shrink-0 ${className}`} style={{ width: `${size * 4}px`, height: `${size * 4}px` }}>
         <div className="sv-avatar w-full h-full text-base font-bold rounded-full overflow-hidden flex items-center justify-center bg-white/5">
@@ -12,4 +13,4 @@ const Avatar = ({ src, name, size = 10, online = false, className = "" }) => (
     </div>
 );
 
-export default Avatar;
+export default React.memo(Avatar);

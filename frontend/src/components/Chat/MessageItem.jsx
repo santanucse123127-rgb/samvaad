@@ -21,6 +21,13 @@ const VoicePlayer = ({ url, duration, isOwn }) => {
   const audioRef = useRef(new Audio(url));
 
   useEffect(() => {
+    if (audioRef.current.src !== url) {
+      audioRef.current.src = url;
+      audioRef.current.load();
+    }
+  }, [url]);
+
+  useEffect(() => {
     const audio = audioRef.current;
 
     const updateProgress = () => {
@@ -668,4 +675,4 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
   );
 };
 
-export default MessageItem;
+export default React.memo(MessageItem);
