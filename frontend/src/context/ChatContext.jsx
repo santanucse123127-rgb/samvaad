@@ -565,10 +565,21 @@ export const ChatProvider = ({ children, token, userId }) => {
       if (!token) return;
       const response = await api.getConversations(token);
       if (response.success) {
-        setConversations(response.data);
+        const decryptedConversations = await Promise.all(response.data.map(async (conv) => {
+          if (conv.lastMessage && conv.lastMessage.isEncrypted) {
+            try {
+              conv.lastMessage.content = await decryptMessageContent(conv.lastMessage, conv);
+            } catch (err) {
+              console.error("Failed to decrypt last message for conversation", conv._id, err);
+            }
+          }
+          return conv;
+        }));
+
+        setConversations(decryptedConversations);
         // Seed the onlineUsers map with real status + lastSeen from DB
         const initialStatus = {};
-        response.data.forEach((conv) => {
+        decryptedConversations.forEach((conv) => {
           conv.participants?.forEach((participant) => {
             if (participant._id && !initialStatus[participant._id]) {
               initialStatus[participant._id] = {
