@@ -326,11 +326,8 @@ const Chat = ({ token }) => {
           token={token}
         />
       )}
-      {showEmojiPicker && (
-        <div className="fixed bottom-24 left-80 z-[100]">
-          <EmojiPicker onSelect={(emoji) => { setNewMessage(p => p + emoji); setShowEmojiPicker(false); }} />
-        </div>
-      )}
+      {/* EmojiPicker is now handled inside ChatInput component */}
+
       {/* ... other modals would go here ... */}
     </ContactSyncGateway>
   );

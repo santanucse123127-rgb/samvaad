@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Smile, Plus, Send, Mic, File, X, Reply } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import EmojiPicker from "../EmojiPicker";
+
 
 const ChatInput = ({
   replyToMessage,
@@ -102,6 +104,13 @@ const ChatInput = ({
               className="flex-1 bg-transparent border-none outline-none text-[15px] py-2 px-2 text-black placeholder:text-gray-400 font-outfit"
             />
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showEmojiPicker ? 'text-black bg-black/5' : 'text-gray-400 hover:text-black hover:bg-black/5'}`}
+              >
+                <Smile size={22} />
+              </button>
               {isRecording ? (
                 <div className="flex items-center gap-3 pr-2">
                   <span className="text-xs font-bold tabular-nums text-red-500 animate-pulse">{fmtDuration(recordingDuration)}</span>
@@ -120,7 +129,20 @@ const ChatInput = ({
               )}
             </div>
           </form>
+
+          {/* Emoji Picker Overlay */}
+          <AnimatePresence>
+            {showEmojiPicker && (
+              <div className="absolute bottom-full mb-4 left-0 z-[100]">
+                <EmojiPicker onEmojiSelect={(emoji) => {
+                  setLocalMessage(p => p + emoji);
+                  // Optional: focus input after selection
+                }} />
+              </div>
+            )}
+          </AnimatePresence>
         </div>
+
       </div>
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
     </div>
