@@ -183,6 +183,17 @@ const CallInterface = () => {
         setActiveCall(null); setIncomingCall(null);
     }, [setActiveCall, setIncomingCall]);
 
+    const rejectCall = useCallback(() => {
+        if (incomingCall?.from) socketService.emit('reject-call', { to: incomingCall.from });
+        cleanup();
+    }, [incomingCall, cleanup]);
+
+    const endCall = useCallback(() => {
+        const to = activeCall?.otherUser?._id || incomingCall?.from;
+        if (to) socketService.emit('end-call', { to });
+        cleanup();
+    }, [activeCall, incomingCall, cleanup]);
+
     /* ── get user media ── */
     const getMedia = useCallback(async (withVideo = false, useFrontCamera = true) => {
         const isMobile = /Mobi|Android/i.test(navigator.userAgent);
@@ -238,88 +249,88 @@ const CallInterface = () => {
             }
         };
 
-        pc.oniceconnectionstatechange = () => {
-            console.log('🧊 ICE:', pc.iceConnectionState);
-            const state = pc.iceConnectionState;
-            if (['connected', 'completed'].includes(state)) {
-                setCallStatus('connected');
-            }
-        };
+    pc.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE:', pc.iceConnectionState);
+        const state = pc.iceConnectionState;
+        if (['connected', 'completed'].includes(state)) {
+            setCallStatus('connected');
+        }
+    };
 
-        pcRef.current = pc;
-        return pc;
-    }, [cleanup]);
+    pcRef.current = pc;
+    return pc;
+}, [cleanup]);
 
-    /* ══ OUTGOING CALL ══ */
-    useEffect(() => {
-        if (!activeCall || incomingCall || callStatus !== 'idle') return;
-        const targetId = activeCall.otherUser?._id;
-        if (!targetId) return;
-        let alive = true;
-        setCallStatus('ringing');
-        (async () => {
-            const stream = await getMedia(activeCall.type === 'video');
-            if (!stream || !alive) { if (!stream) { alert('Microphone access denied.'); cleanup(); } return; }
-            localStreamRef.current = stream;
-            if (localVideoRef.current && activeCall.type === 'video') {
-                localVideoRef.current.srcObject = stream; localVideoRef.current.play().catch(() => { });
-            }
-            const pc = makePeer(targetId);
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-            const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: activeCall.type === 'video' });
-            await pc.setLocalDescription(offer);
-            socketService.emit('call-user', { to: targetId, offer: pc.localDescription, callType: activeCall.type });
-        })();
-        return () => { alive = false; };
-        // eslint-disable-next-line
-    }, [activeCall?.otherUser?._id, activeCall?.type]);
+/* ══ OUTGOING CALL ══ */
+useEffect(() => {
+    if (!activeCall || incomingCall || callStatus !== 'idle') return;
+    const targetId = activeCall.otherUser?._id;
+    if (!targetId) return;
+    let alive = true;
+    setCallStatus('ringing');
+    (async () => {
+        const stream = await getMedia(activeCall.type === 'video');
+        if (!stream || !alive) { if (!stream) { alert('Microphone access denied.'); cleanup(); } return; }
+        localStreamRef.current = stream;
+        if (localVideoRef.current && activeCall.type === 'video') {
+            localVideoRef.current.srcObject = stream; localVideoRef.current.play().catch(() => { });
+        }
+        const pc = makePeer(targetId);
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: activeCall.type === 'video' });
+        await pc.setLocalDescription(offer);
+        socketService.emit('call-user', { to: targetId, offer: pc.localDescription, callType: activeCall.type });
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line
+}, [activeCall?.otherUser?._id, activeCall?.type]);
 
-    /* ══ SOCKET LISTENERS ══ */
-    useEffect(() => {
-        const onAnswered = async ({ answer }) => {
-            console.log('📞 call-answered');
-            const pc = pcRef.current;
-            if (!pc || pc.signalingState !== 'have-local-offer') return;
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(answer));
-                await drainIce();
-                // Removed arbitrary setTimeout; relying on connection state events for 'connected' status
-            } catch (e) { console.error('setRemoteDescription(answer):', e); }
-        };
+/* ══ SOCKET LISTENERS ══ */
+useEffect(() => {
+    const onAnswered = async ({ answer }) => {
+        console.log('📞 call-answered');
+        const pc = pcRef.current;
+        if (!pc || pc.signalingState !== 'have-local-offer') return;
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            await drainIce();
+            // Removed arbitrary setTimeout; relying on connection state events for 'connected' status
+        } catch (e) { console.error('setRemoteDescription(answer):', e); }
+    };
 
-        const onIce = async ({ candidate }) => {
-            if (!candidate || !pcRef.current) return;
-            if (pcRef.current.remoteDescription?.type) {
-                try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); }
-                catch (e) { console.warn('addIceCandidate:', e.message); }
-            } else {
-                pendingIce.current.push(candidate);
-            }
-        };
+    const onIce = async ({ candidate }) => {
+        if (!candidate || !pcRef.current) return;
+        if (pcRef.current.remoteDescription?.type) {
+            try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); }
+            catch (e) { console.warn('addIceCandidate:', e.message); }
+        } else {
+            pendingIce.current.push(candidate);
+        }
+    };
 
-        const onRejected = () => { console.log('📞 rejected'); cleanup(); };
-        const onEnded = () => { console.log('📞 ended'); cleanup(); };
-        const onTimeout = () => { console.log('📞 call timed out'); cleanup(); };
-        const onCancelled = () => { console.log('📞 call cancelled by caller'); cleanup(); };
+    const onRejected = () => { console.log('📞 rejected'); cleanup(); };
+    const onEnded = () => { console.log('📞 ended'); cleanup(); };
+    const onTimeout = () => { console.log('📞 call timed out'); cleanup(); };
+    const onCancelled = () => { console.log('📞 call cancelled by caller'); cleanup(); };
 
-        socketService.on('call-answered', onAnswered);
-        socketService.on('ice-candidate', onIce);
-        socketService.on('call-rejected', onRejected);
-        socketService.on('call-ended', onEnded);
-        socketService.on('call-timeout', onTimeout);
-        socketService.on('call-cancelled', onCancelled);
-        return () => {
-            socketService.off('call-answered', onAnswered);
-            socketService.off('ice-candidate', onIce);
-            socketService.off('call-rejected', onRejected);
-            socketService.off('call-ended', onEnded);
-            socketService.off('call-timeout', onTimeout);
-            socketService.off('call-cancelled', onCancelled);
-        };
-    }, [cleanup, drainIce]);
+    socketService.on('call-answered', onAnswered);
+    socketService.on('ice-candidate', onIce);
+    socketService.on('call-rejected', onRejected);
+    socketService.on('call-ended', onEnded);
+    socketService.on('call-timeout', onTimeout);
+    socketService.on('call-cancelled', onCancelled);
+    return () => {
+        socketService.off('call-answered', onAnswered);
+        socketService.off('ice-candidate', onIce);
+        socketService.off('call-rejected', onRejected);
+        socketService.off('call-ended', onEnded);
+        socketService.off('call-timeout', onTimeout);
+        socketService.off('call-cancelled', onCancelled);
+    };
+}, [cleanup, drainIce]);
 
-    /* ══ ANSWER ══ */
-    const answerCall = useCallback(async () => {
+/* ══ ANSWER ══ */
+const answerCall = useCallback(async () => {
         if (!incomingCall) return;
         ringingRef.current?.stop(); ringingRef.current = null;
         const callType = incomingCall.callType || 'voice';
@@ -345,19 +356,7 @@ const CallInterface = () => {
         /* Switch UI — set activeCall FIRST so audio element mounts */
         setActiveCall({ otherUser: incomingCall.fromUser, type: callType });
         setIncomingCall(null);
-        // Removed arbitrary setTimeout; relying on connection state events for 'connected' status
-    }, [incomingCall, getMedia, makePeer, drainIce, setActiveCall, setIncomingCall, rejectCall]); // eslint-disable-line
-
-    const rejectCall = useCallback(() => {
-        if (incomingCall?.from) socketService.emit('reject-call', { to: incomingCall.from });
-        cleanup();
-    }, [incomingCall, cleanup]);
-
-    const endCall = useCallback(() => {
-        const to = activeCall?.otherUser?._id || incomingCall?.from;
-        if (to) socketService.emit('end-call', { to });
-        cleanup();
-    }, [activeCall, incomingCall, cleanup]);
+    }, [incomingCall, getMedia, makePeer, drainIce, setActiveCall, setIncomingCall, rejectCall]);
 
     const toggleMute = () => {
         localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = isMuted; });

@@ -10,17 +10,22 @@ export const usePushNotifications = (token) => {
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     const urlBase64ToUint8Array = (base64String) => {
-        if (!base64String) return new Uint8Array(0);
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
-            .replace(/-/g, '+')
-            .replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
+        if (!base64String) return null;
+        try {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        } catch (err) {
+            console.error('❌ Failed to convert VAPID key:', err);
+            return null;
         }
-        return outputArray;
     };
 
     const subscribeUser = useCallback(async () => {
@@ -31,18 +36,36 @@ export const usePushNotifications = (token) => {
 
         try {
             const registration = await navigator.serviceWorker.ready;
+            
+            // Check for existing subscription first
+            const existing = await registration.pushManager.getSubscription();
+            if (existing) {
+                setIsSubscribed(true);
+                return;
+            }
+
+            const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+            if (!convertedKey) {
+                console.warn('⚠️ Cannot subscribe: VAPID_PUBLIC_KEY is missing or invalid');
+                return;
+            }
+
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                applicationServerKey: convertedKey
             });
 
             // Send subscription to backend
             await subscribePush(subscription, token);
 
             setIsSubscribed(true);
-            console.log('User subscribed to push notifications');
+            console.log('✅ User subscribed to push notifications');
         } catch (error) {
-            console.error('Failed to subscribe user:', error);
+            if (error.name === 'NotAllowedError') {
+                console.warn('⚠️ User denied push notification permissions');
+            } else {
+                console.error('❌ Failed to subscribe user:', error);
+            }
         }
     }, [token]);
 

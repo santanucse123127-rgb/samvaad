@@ -35,6 +35,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
+import React from "react";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 
 // ── Existing desktop views (unchanged) ──────────────────────────

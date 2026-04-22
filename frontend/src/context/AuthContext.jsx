@@ -132,6 +132,21 @@ export const AuthProvider = ({ children }) => {
 
 
 
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      localStorage.removeItem("token");
+      setToken(null);
+      setUser(null);
+      navigate('/login');
+      socketService.disconnect();
+      toast({ title: "Logged Out", description: "You have successfully logged out.", variant: "default" });
+    }
+  }, [navigate]);
+
   const fetchUser = useCallback(async () => {
     try {
       const response = await authAPI.getMe();
@@ -157,7 +172,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     if (token) {
@@ -249,20 +264,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      await authAPI.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      localStorage.removeItem("token");
-      setToken(null);
-      setUser(null);
-      navigate('/login');
-      socketService.disconnect();
-      toast({ title: "Logged Out", description: "You have successfully logged out.", variant: "default" });
-    }
-  }, [navigate]);
 
   const updateUser = useCallback((updatedData) => setUser(prev => ({ ...prev, ...updatedData })), []);
 
