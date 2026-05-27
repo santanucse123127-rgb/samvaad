@@ -3,10 +3,15 @@ import { motion } from 'framer-motion';
 const TypingIndicator = () => {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="flex items-center gap-2 py-2 px-3 self-start"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex items-center gap-2 py-2.5 px-4 rounded-2xl self-start"
+            style={{
+                background: 'hsl(var(--sv-surface-3))',
+                border: '1px solid hsl(var(--sv-border))',
+                borderBottomLeftRadius: 4,
+            }}
         >
             <div className="flex gap-1.5 items-center">
                 {[0, 1, 2].map((i) => (
@@ -20,15 +25,15 @@ const TypingIndicator = () => {
                             ease: "easeInOut"
                         }}
                         style={{
-                            width: 6,
-                            height: 6,
+                            width: 5,
+                            height: 5,
                             borderRadius: "50%",
-                            background: "hsl(var(--sv-online))",
+                            background: "hsl(var(--sv-accent))",
+                            opacity: 0.6,
                         }}
                     />
                 ))}
             </div>
-            <span className="text-[12px] font-bold uppercase tracking-widest text-black/30 ml-2">Typing</span>
         </motion.div>
     );
 };

@@ -30,7 +30,7 @@ const TaskPanel = ({ isOpen, onClose }) => {
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-                <div className="flex items-center justify-between p-4 border-b bg-black/5" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
+                <div className="flex items-center justify-between p-4 border-b bg-[hsl(var(--sv-surface-2))]" style={{ borderColor: 'hsl(var(--sv-border) / 0.5)' }}>
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
                             <CheckCircle2 size={18} />
@@ -82,7 +82,7 @@ const TaskItem = ({ task, onToggle, onDelete }) => {
     return (
         <motion.div
             layout
-            className="group p-3.5 rounded-2xl border transition-all hover:bg-white/5"
+            className="group p-3.5 rounded-2xl border transition-all hover:bg-black/5"
             style={{
                 background: 'hsl(var(--sv-surface-2))',
                 borderColor: isOverdue ? 'rgba(239, 68, 68, 0.2)' : 'hsl(var(--sv-border) / 0.5)'
@@ -95,11 +95,11 @@ const TaskItem = ({ task, onToggle, onDelete }) => {
                 >
                     {isCompleted
                         ? <CheckCircle2 size={18} className="text-green-500" />
-                        : <Circle size={18} className={isOverdue ? "text-red-500/50" : "text-white/20"} />
+                        : <Circle size={18} className={isOverdue ? "text-red-500/50" : "text-black/20"} />
                     }
                 </button>
                 <div className="flex-1 min-w-0">
-                    <h5 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-white/30' : 'text-white'}`}>
+                    <h5 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-sv-text-3' : 'text-sv-text'}`}>
                         {task.title}
                     </h5>
                     {task.description && (
@@ -110,7 +110,7 @@ const TaskItem = ({ task, onToggle, onDelete }) => {
 
                     <div className="flex items-center gap-3 mt-3">
                         {task.deadline && (
-                            <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${isOverdue ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-white/40'}`}>
+                            <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${isOverdue ? 'bg-red-500/10 text-red-400' : 'bg-black/5 text-sv-text-3'}`}>
                                 <Calendar size={10} />
                                 {new Date(task.deadline).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </div>

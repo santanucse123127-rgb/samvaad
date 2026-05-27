@@ -1,5 +1,5 @@
 import React from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import MessageItem from "../MessageItem";
 import TypingIndicator from "../TypingIndicator";
 
@@ -20,24 +20,37 @@ const MessageList = ({
     <div
       ref={messageContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto scrollbar-custom px-4 md:px-6 py-4 flex flex-col gap-1"
-      style={{ background: '#f8fafc' }}
+      className="flex-1 overflow-y-auto scrollbar-custom"
+      style={{
+        // Subtle dot-grid pattern like HYPER reference
+        background: `
+          radial-gradient(circle, hsl(230 15% 22% / 0.5) 1px, transparent 1px)
+        `,
+        backgroundSize: '24px 24px',
+        backgroundColor: 'hsl(230 20% 11%)',
+      }}
     >
-      <div className="max-w-3xl w-full mx-auto flex flex-col gap-1 pt-2 pb-4">
+      <div className="max-w-2xl w-full mx-auto flex flex-col pt-4 pb-6 px-4 md:px-6 gap-1">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'hsl(var(--sv-accent))' }} />
+          <div className="flex items-center justify-center py-24">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
+                style={{ borderColor: 'hsl(var(--sv-accent))' }} />
+              <p className="text-xs font-medium" style={{ color: 'hsl(var(--sv-text-3))' }}>Loading…</p>
+            </div>
           </div>
         ) : (
           messagesWithDates.map((item) => {
             if (item.type === "date") return (
-              <div key={item.id} className="flex items-center justify-center my-4">
-                <span className="text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full font-bold"
+              <div key={item.id} className="flex items-center justify-center my-5">
+                <span
+                  className="text-[10px] uppercase tracking-[0.15em] px-4 py-1.5 rounded-full font-semibold"
                   style={{
-                    background: 'hsl(var(--sv-surface-2))',
+                    background: 'hsl(230 18% 17%)',
                     color: 'hsl(var(--sv-text-3))',
                     border: '1px solid hsl(var(--sv-border))'
-                  }}>
+                  }}
+                >
                   {item.label}
                 </span>
               </div>
@@ -57,9 +70,14 @@ const MessageList = ({
         )}
         <AnimatePresence>
           {isTyping && (
-            <div className="flex items-end gap-3 px-2">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              className="flex items-end gap-2 px-2"
+            >
               <TypingIndicator />
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
         <div ref={messagesEndRef} />

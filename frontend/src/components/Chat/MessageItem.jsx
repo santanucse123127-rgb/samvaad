@@ -378,7 +378,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       >
-        <div className="flex flex-col items-end max-w-[72%] relative">
+        <div className="flex flex-col items-end" style={{ maxWidth: '60%' }}>
           <div
             className="relative flex items-end gap-2 flex-row-reverse"
             onMouseEnter={handleMouseEnter}
@@ -476,7 +476,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
               )}
             </AnimatePresence>
 
-            <div className="relative px-3.5 py-4 sv-bubble-own-p max-w-full">
+            <div className="relative px-3.5 py-2.5 sv-bubble-own-p w-fit" style={{ borderRadius: '16px 16px 4px 16px', maxWidth: '100%' }}>
               {message.replyTo && (
                 <div
                   onClick={() => {
@@ -496,7 +496,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
                 </div>
               )}
               {renderContent()}
-              <div className="flex items-center justify-end gap-1 mt-1.5 select-none" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              <div className="flex items-center justify-end gap-1 mt-1.5 select-none" style={{ color: 'rgba(255,255,255,0.5)' }}>
                 {message.edited && <span className="text-[10px]">edited</span>}
                 <span className="text-[10px] tabular-nums">{time}</span>
                 <Ticks status={message.status} />
@@ -536,7 +536,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
       </div>
 
       {/* Content: name+time header + bubble */}
-      <div className="flex flex-col items-start max-w-[72%]">
+      <div className="flex flex-col items-start" style={{ maxWidth: '60%' }}>
         {/* Sender name + timestamp */}
         {senderName && (
           <div className="flex items-center gap-2 mb-1.5 px-1">
@@ -630,7 +630,7 @@ const MessageItem = ({ message, isOwn, onReply, onForward }) => {
             )}
           </AnimatePresence>
 
-          <div className="relative px-3.5 py-4 sv-bubble-other-p max-w-full text-white">
+          <div className="relative px-3.5 py-2.5 sv-bubble-other-p w-fit" style={{ borderRadius: '16px 16px 16px 4px', maxWidth: '100%' }}>
             {message.replyTo && (
               <div
                 onClick={() => {

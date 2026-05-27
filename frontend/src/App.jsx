@@ -77,8 +77,8 @@ const AnimatedRoutes = () => {
 /* ── App shell ── */
 const AppContent = () => {
   useEffect(() => {
-    // Ensure light theme for premium UI match
-    document.documentElement.classList.remove("dark");
+    // Dark HYPER theme
+    document.documentElement.classList.add("dark");
   }, []);
 
   return <AnimatedRoutes />;

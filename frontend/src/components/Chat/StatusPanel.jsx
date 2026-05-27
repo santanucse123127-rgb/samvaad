@@ -57,13 +57,13 @@ const StatusPanel = () => {
             <div className="flex-1 overflow-y-auto scrollbar-custom p-4 space-y-6">
                 {/* My Status */}
                 <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-2">My Status</p>
-                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-sv-text-3 ml-2">My Status</p>
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-[hsl(var(--sv-surface-2))] border border-[hsl(var(--sv-border))] hover:bg-black/5 transition-all group">
                         <div
                             className="relative cursor-pointer"
                             onClick={() => myStatus ? openViewer(myStatus) : setShowAddModal(true)}
                         >
-                            <div className={`w-12 h-12 rounded-full p-0.5 border-2 ${myStatus ? 'border-sv-accent' : 'border-dashed border-white/20'}`}>
+                            <div className={`w-12 h-12 rounded-full p-0.5 border-2 ${myStatus ? 'border-sv-accent' : 'border-dashed border-black/20'}`}>
                                 <img
                                     src={user.avatar || "/default-avatar.png"}
                                     alt="Me"
@@ -71,21 +71,21 @@ const StatusPanel = () => {
                                 />
                             </div>
                             {!myStatus && (
-                                <div className="absolute -right-1 -bottom-1 w-5 h-5 bg-sv-accent rounded-full flex items-center justify-center border-2 border-[#1a1a1b]">
+                                <div className="absolute -right-1 -bottom-1 w-5 h-5 bg-sv-accent rounded-full flex items-center justify-center border-2 border-white">
                                     <Plus size={12} className="text-white" />
                                 </div>
                             )}
                         </div>
                         <div className="flex-1">
-                            <h4 className="text-xs font-bold text-white">My Status</h4>
-                            <p className="text-[10px] text-white/40">
+                            <h4 className="text-xs font-bold text-sv-text">My Status</h4>
+                            <p className="text-[10px] text-sv-text-3">
                                 {myStatus ? `${myStatus.items.length} updates` : "Tap to add status"}
                             </p>
                         </div>
                         {myStatus && (
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="w-8 h-8 rounded-lg bg-black/5 text-sv-text hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                                 <Plus size={16} />
                             </button>
@@ -95,11 +95,11 @@ const StatusPanel = () => {
 
                 {/* Updates */}
                 <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30 ml-2">Recent Updates</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-sv-text-3 ml-2">Recent Updates</p>
                     {othersStatuses.length === 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center gap-4 opacity-20">
                             <Camera size={32} />
-                            <p className="text-[11px] font-medium px-8">No status updates from your contacts yet.</p>
+                            <p className="text-[11px] font-medium px-8 text-sv-text">No status updates from your contacts yet.</p>
                         </div>
                     ) : (
                         othersStatuses.map((group) => {
@@ -108,9 +108,9 @@ const StatusPanel = () => {
                                 <div
                                     key={group.user._id}
                                     onClick={() => openViewer(group)}
-                                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer"
+                                    className="flex items-center gap-3 p-3 rounded-2xl bg-[hsl(var(--sv-surface-2))] border border-[hsl(var(--sv-border))] hover:bg-black/5 transition-all cursor-pointer"
                                 >
-                                    <div className={`w-12 h-12 rounded-full p-0.5 border-2 ${hasUnseen ? 'border-sv-accent' : 'border-white/10'}`}>
+                                    <div className={`w-12 h-12 rounded-full p-0.5 border-2 ${hasUnseen ? 'border-sv-accent' : 'border-black/10'}`}>
                                         <img
                                             src={group.user.avatar || "/default-avatar.png"}
                                             alt={group.user.name}
@@ -118,8 +118,8 @@ const StatusPanel = () => {
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-xs font-bold text-white truncate">{group.user.name}</h4>
-                                        <p className="text-[10px] text-white/40 truncate">
+                                        <h4 className="text-xs font-bold text-sv-text truncate">{group.user.name}</h4>
+                                        <p className="text-[10px] text-sv-text-3 truncate">
                                             {new Date(group.items[0].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
@@ -182,8 +182,9 @@ const StatusPanel = () => {
                             {selectedGroup.items.map((_, idx) => (
                                 <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
                                     <div
-                                        className={`h-full bg-white transition-all duration-[5000ms] ease-linear
+                                        className={`h-full bg-white ease-linear transition-all
                       ${idx < viewingStatusIndex ? 'w-full' : idx === viewingStatusIndex ? 'w-full' : 'w-0'}`}
+                                        style={{ transitionDuration: '5000ms' }}
                                     />
                                 </div>
                             ))}
